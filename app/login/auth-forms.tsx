@@ -1,7 +1,12 @@
 "use client";
 // The two forms (login / sign-up) with a switch between them.
 import { useActionState, useState } from "react";
-import { signIn, signUp, type AuthFormState } from "./actions";
+import {
+  signIn,
+  signInWithGoogle,
+  signUp,
+  type AuthFormState,
+} from "./actions";
 
 const inputClass =
   "w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-stone-900 " +
@@ -154,12 +159,34 @@ function SignUpForm() {
   );
 }
 
+function GoogleButton({ next }: { next: string }) {
+  return (
+    <form action={signInWithGoogle}>
+      <input type="hidden" name="next" value={next} />
+      <button
+        type="submit"
+        className="flex w-full items-center justify-center gap-3 rounded-lg border border-stone-300 bg-white px-4 py-2.5 font-semibold text-stone-800 hover:bg-stone-50"
+      >
+        <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>
+          <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.6 13.3l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z" />
+          <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 2.9-2.2 5.4-4.7 7.1l7.6 5.9c4.4-4.1 6.9-10.1 6.9-17.5z" />
+          <path fill="#FBBC05" d="M10.5 28.6c-.5-1.4-.8-3-.8-4.6s.3-3.2.8-4.6l-7.9-6.1C.9 16.6 0 20.2 0 24s.9 7.4 2.6 10.7l7.9-6.1z" />
+          <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2.1 1.4-4.9 2.3-8.3 2.3-6.3 0-11.6-4.1-13.5-9.9l-7.9 6.1C6.6 42.6 14.6 48 24 48z" />
+        </svg>
+        המשך עם Google
+      </button>
+    </form>
+  );
+}
+
 export function AuthForms({
   next,
   linkError,
+  googleError,
 }: {
   next: string;
   linkError: boolean;
+  googleError: boolean;
 }) {
   const [mode, setMode] = useState<"login" | "signup">("login");
 
@@ -188,6 +215,21 @@ export function AuthForms({
           שבו נרשמת.
         </p>
       )}
+
+      {googleError && (
+        <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">
+          ההתחברות עם Google לא הצליחה. אפשר לנסות שוב, או להתחבר עם אימייל
+          וסיסמה.
+        </p>
+      )}
+
+      <GoogleButton next={next} />
+
+      <div className="flex items-center gap-3 text-xs text-stone-400">
+        <span className="h-px flex-1 bg-stone-200" />
+        או עם אימייל
+        <span className="h-px flex-1 bg-stone-200" />
+      </div>
 
       <div className="flex gap-1 rounded-lg bg-stone-100 p-1">
         {tab("login", "התחברות")}

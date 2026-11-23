@@ -14,6 +14,7 @@ async function LoginPanel({ searchParams }: PageProps<"/login">) {
     <AuthForms
       next={safeNext(params.next)}
       linkError={params.error === "link"}
+      googleError={params.error === "google"}
     />
   );
 }

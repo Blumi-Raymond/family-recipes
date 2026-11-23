@@ -110,3 +110,31 @@ export async function signOut() {
   await supabase.auth.signOut();
   redirect("/login");
 }
+
+// ---------------------------------------------------------------------
+// Log in with Google
+// Sends the browser to Google; Google sends her back to /auth/callback.
+// Works only after Google is set up in Google Cloud + Supabase (Providers).
+// ---------------------------------------------------------------------
+export async function signInWithGoogle(formData: FormData) {
+  const next = safeNext(formData.get("next"));
+
+  const h = await headers();
+  const origin =
+    h.get("origin") ??
+    `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}`;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
+    },
+  });
+
+  if (error || !data.url) {
+    console.error("Google sign-in error:", error?.code, error?.message);
+    redirect("/login?error=google");
+  }
+  redirect(data.url);
+}
