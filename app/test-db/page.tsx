@@ -1,9 +1,13 @@
 // Temporary page to check the Supabase connection. Delete before launch.
+//
+// Cache Components is enabled in this project, so:
+// - no `export const dynamic` here (not allowed with Cache Components)
+// - the part that reads cookies / the database lives in a component
+//   wrapped in <Suspense>, so it runs at request time.
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 
-export const dynamic = "force-dynamic";
-
-export default async function TestDbPage() {
+async function ConnectionStatus() {
   const supabase = await createClient();
 
   const { data: claims } = await supabase.auth.getClaims();
@@ -16,11 +20,11 @@ export default async function TestDbPage() {
     .order("name_en");
 
   return (
-    <main dir="rtl" className="mx-auto max-w-xl p-8 font-sans">
-      <h1 className="mb-6 text-2xl font-bold">בדיקת חיבור למסד הנתונים</h1>
-
+    <>
       <ul className="mb-6 space-y-2">
-        <li>{error ? "❌" : "✅"} החיבור ל-Supabase {error ? "נכשל" : "עובד"}</li>
+        <li>
+          {error ? "❌" : "✅"} החיבור ל-Supabase {error ? "נכשל" : "עובד"}
+        </li>
         <li>{loggedIn ? "✅ מחוברת" : "⚪ לא מחוברת (עדיין אין מסך התחברות)"}</li>
         <li>תוויות שנקראו: {tags?.length ?? 0}</li>
       </ul>
@@ -48,6 +52,17 @@ export default async function TestDbPage() {
           ))}
         </ul>
       )}
+    </>
+  );
+}
+
+export default function TestDbPage() {
+  return (
+    <main dir="rtl" className="mx-auto max-w-xl p-8 font-sans">
+      <h1 className="mb-6 text-2xl font-bold">בדיקת חיבור למסד הנתונים</h1>
+      <Suspense fallback={<p>בודק חיבור...</p>}>
+        <ConnectionStatus />
+      </Suspense>
     </main>
   );
 }
