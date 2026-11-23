@@ -25,7 +25,7 @@ async function ConnectionStatus() {
         <li>
           {error ? "❌" : "✅"} החיבור ל-Supabase {error ? "נכשל" : "עובד"}
         </li>
-        <li>{loggedIn ? "✅ מחוברת" : "⚪ לא מחוברת (עדיין אין מסך התחברות)"}</li>
+        <li>{loggedIn ? "✅ מחוברת" : "⚪ לא מחוברת"}</li>
         <li>תוויות שנקראו: {tags?.length ?? 0}</li>
       </ul>
 
