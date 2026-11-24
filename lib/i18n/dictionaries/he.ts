@@ -57,10 +57,6 @@ const he = {
     other: "עוד",
   },
 
-  contentLanguage: {
-    he: "עברית",
-    en: "אנגלית",
-  },
 
 
   time: {
@@ -122,7 +118,6 @@ const he = {
     titleEdit: "עריכת ספר",
     fieldTitle: "שם הספר",
     fieldAuthor: "מחבר/ת",
-    fieldLanguage: "שפת הספר",
     fieldNotes: "הערות",
     fieldCover: "תמונת כריכה",
     save: "שמירת הספר",
@@ -169,8 +164,6 @@ const he = {
     sectionNotes: "הערות",
     title: "שם המתכון",
     description: "תיאור קצר",
-    language: "שפת המתכון",
-    languageHint: "המתכון יוצג בכיוון הכתיבה של השפה שלו.",
     book: "ספר",
     noBook: "בלי ספר",
     page: "עמוד",

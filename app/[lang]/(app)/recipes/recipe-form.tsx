@@ -38,6 +38,7 @@ import {
   formToInput,
   initialFormState,
   newKey,
+  recipeLanguage,
   type IngredientRow,
   type RecipeFormState,
   type StepRow,
@@ -71,9 +72,10 @@ export function RecipeForm({ recipe, groupId, books, tags, initialBookId }: Prop
   const [dirty, setDirty] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
-  // Content fields follow the RECIPE's language, not the site's
-  const dir = dirOf(form.language);
-  const lang = form.language;
+  // Content fields follow the RECIPE's language (detected from the text),
+  // not the site's
+  const lang = recipeLanguage(form);
+  const dir = dirOf(lang);
 
   const update = (patch: Partial<RecipeFormState>) => {
     setForm((f) => ({ ...f, ...patch }));
@@ -132,39 +134,25 @@ export function RecipeForm({ recipe, groupId, books, tags, initialBookId }: Prop
     <form ref={formRef} onSubmit={onSubmit} noValidate className="flex flex-col gap-7">
       {/* ---------------- Details ---------------- */}
       <FormSection title={t.recipeForm.sectionDetails}>
-        <div className="grid gap-[18px] sm:grid-cols-2">
-          <ChoiceGroup
-            legend={t.kosher.question}
-            name="kosher"
-            value={form.kosher}
-            onChange={(kosher: KosherType) => update({ kosher })}
-            error={err("kosher_type")}
-            options={[
-              { value: "meat", label: t.kosher.meat },
-              { value: "dairy", label: t.kosher.dairy },
-              { value: "pareve", label: t.kosher.pareve },
-            ]}
-          />
-          <ChoiceGroup
-            legend={t.recipeForm.language}
-            name="language"
-            value={form.language}
-            onChange={(language) => update({ language })}
-            hint={t.recipeForm.languageHint}
-            options={[
-              { value: "he", label: t.contentLanguage.he },
-              { value: "en", label: t.contentLanguage.en },
-            ]}
-          />
-        </div>
+        <ChoiceGroup
+          legend={t.kosher.question}
+          name="kosher"
+          value={form.kosher}
+          onChange={(kosher: KosherType) => update({ kosher })}
+          error={err("kosher_type")}
+          options={[
+            { value: "meat", label: t.kosher.meat },
+            { value: "dairy", label: t.kosher.dairy },
+            { value: "pareve", label: t.kosher.pareve },
+          ]}
+        />
         <Field
           id="title"
           label={t.recipeForm.title}
           value={form.title}
           onChange={(e) => update({ title: e.target.value })}
           error={err("title")}
-          dir={dir}
-          lang={lang}
+          dir="auto"
           maxLength={200}
           required
         />

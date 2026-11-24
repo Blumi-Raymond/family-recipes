@@ -54,10 +54,6 @@ const en: Dictionary = {
     other: "More",
   },
 
-  contentLanguage: {
-    he: "Hebrew",
-    en: "English",
-  },
 
 
   time: {
@@ -116,7 +112,6 @@ const en: Dictionary = {
     titleEdit: "Edit cookbook",
     fieldTitle: "Title",
     fieldAuthor: "Author",
-    fieldLanguage: "Book language",
     fieldNotes: "Notes",
     fieldCover: "Cover photo",
     save: "Save cookbook",
@@ -157,8 +152,6 @@ const en: Dictionary = {
     sectionNotes: "Notes",
     title: "Recipe name",
     description: "Short description",
-    language: "Recipe language",
-    languageHint: "The recipe is shown in its own language's writing direction.",
     book: "Cookbook",
     noBook: "No cookbook",
     page: "Page",

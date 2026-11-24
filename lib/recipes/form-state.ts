@@ -5,6 +5,7 @@
 // Ingredients and steps are lists of rows. A row is either an item or a
 // heading ("For the dough"); a heading applies to the items below it.
 import type { Locale } from "@/lib/i18n/config";
+import { detectLanguage } from "@/lib/i18n/detect";
 import { numberOrNull, toFieldErrors, type FieldErrors } from "@/lib/validation";
 import type { RecipeDetails } from "@/lib/data/recipes";
 import type { PickedPhoto } from "@/components/photo-picker";
@@ -32,7 +33,7 @@ export type RecipeFormState = {
   id: string | null;
   title: string;
   description: string;
-  language: Locale;
+  language: Locale; // starting guess only; the saved language is detected from the text
   kosher: KosherType | "";
   yieldText: string;
   servings: string;
@@ -146,6 +147,14 @@ export function initialFormState(recipe: RecipeDetails | null, locale: Locale): 
   };
 }
 
+// The recipe's language, from what she typed (title, ingredients, steps)
+export function recipeLanguage(form: RecipeFormState): Locale {
+  const texts = [form.title, form.description];
+  for (const r of form.ingredients) texts.push(r.kind === "item" ? r.name : r.text);
+  for (const r of form.steps) texts.push(r.text);
+  return detectLanguage(texts, form.language);
+}
+
 // Form -> what is saved, plus errors keyed for the screen:
 //   "title", "kosher_type", ...       top fields
 //   "ingredient.<rowKey>.quantity"     a field in a row
@@ -200,7 +209,7 @@ export function formToInput(
     id: form.id,
     title: form.title,
     description: form.description,
-    language: form.language,
+    language: recipeLanguage(form),
     kosher_type: form.kosher as KosherType, // "" fails the rules below
     yield_text: form.yieldText,
     servings: numberOrNull(form.servings),

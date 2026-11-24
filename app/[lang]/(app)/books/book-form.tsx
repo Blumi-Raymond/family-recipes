@@ -4,11 +4,12 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition, type FormEvent } from "react";
 import { ConfirmButton } from "@/components/confirm-button";
 import { PhotoPicker, type PickedPhoto } from "@/components/photo-picker";
-import { Alert, Button, ChoiceGroup, Field, LinkButton, TextArea } from "@/components/ui";
+import { Alert, Button, Field, LinkButton, TextArea } from "@/components/ui";
 import { deleteCookbook, saveCookbook } from "@/lib/actions/books";
 import { cookbookSchema, type CookbookInput } from "@/lib/books/schema";
 import { useI18n } from "@/lib/i18n/client";
 import { localePath, type Locale } from "@/lib/i18n/config";
+import { detectLanguage } from "@/lib/i18n/detect";
 import { toFieldErrors, type FieldErrors, type FormErrorKey } from "@/lib/validation";
 
 export type BookFormInitial = {
@@ -26,7 +27,6 @@ export function BookForm({ initial, groupId }: { initial: BookFormInitial | null
   const router = useRouter();
   const [title, setTitle] = useState(initial?.title ?? "");
   const [author, setAuthor] = useState(initial?.author ?? "");
-  const [language, setLanguage] = useState<Locale>(initial?.language ?? locale);
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [cover, setCover] = useState<PickedPhoto[]>(
     initial?.cover_image_path
@@ -48,7 +48,8 @@ export function BookForm({ initial, groupId }: { initial: BookFormInitial | null
     const input: CookbookInput = {
       title,
       author,
-      language,
+      // Detected from what she typed; no need to ask
+      language: detectLanguage([title, author, notes], initial?.language ?? locale),
       notes,
       cover_image_path: cover[0]?.path ?? null,
     };
@@ -92,16 +93,6 @@ export function BookForm({ initial, groupId }: { initial: BookFormInitial | null
         error={fieldError("author")}
         dir="auto"
         maxLength={200}
-      />
-      <ChoiceGroup
-        legend={t.books.fieldLanguage}
-        name="language"
-        value={language}
-        onChange={setLanguage}
-        options={[
-          { value: "he", label: t.contentLanguage.he },
-          { value: "en", label: t.contentLanguage.en },
-        ]}
       />
       <TextArea
         id="notes"
