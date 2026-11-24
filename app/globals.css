@@ -1,26 +1,28 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+ * Design tokens — "olive" (design A1). Use ONLY these colors across the site.
+ * In Tailwind classes they appear as: bg-brand, text-ink, border-line, etc.
+ * Full guide: docs/design.md
+ */
+@theme {
+  --color-brand: #3f5d3a; /* buttons, links, focus, icons */
+  --color-brand-dark: #2f4a2b; /* hover on brand */
+  --color-brand-tint: #eef2ea; /* side panel, soft backgrounds, chips */
+  --color-ink: #1c2419; /* main text */
+  --color-ink-soft: #55604f; /* secondary text */
+  --color-ink-faint: #7a8574; /* placeholders, hints */
+  --color-line: #dce3d6; /* borders, dividers */
+  --color-surface: #ffffff; /* page background */
+  --color-danger: #a3302a; /* error text */
+  --color-danger-tint: #fbedec; /* error background */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --font-sans: var(--font-heebo), system-ui, sans-serif;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --radius-field: 10px; /* inputs and buttons */
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-surface);
+  color: var(--color-ink);
 }

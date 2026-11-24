@@ -1,38 +1,37 @@
-// Login / sign-up screen.
-// The frame is static (loads instantly); the part that reads the URL
-// (?next=..., ?error=...) is inside <Suspense>, as Cache Components requires.
+// Login screen. The frame is static (loads instantly); the part that
+// reads the URL (?next=, ?email=, ?error=) sits inside <Suspense>,
+// as Cache Components requires.
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { AuthShell } from "@/components/auth-shell";
 import { safeNext } from "@/lib/auth/safe-next";
-import { AuthForms } from "./auth-forms";
+import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "התחברות · מתכונים משפחתיים" };
 
+const NOTICES: Record<string, string> = {
+  link: "הקישור לא תקין או שפג תוקפו. אפשר פשוט להתחבר.",
+  google: "ההתחברות עם Google לא הצליחה. אפשר לנסות שוב.",
+};
+
 async function LoginPanel({ searchParams }: PageProps<"/login">) {
   const params = await searchParams;
+  const str = (v: string | string[] | undefined) => (typeof v === "string" ? v : "");
   return (
-    <AuthForms
+    <LoginForm
       next={safeNext(params.next)}
-      linkError={params.error === "link"}
-      googleError={params.error === "google"}
+      initialEmail={str(params.email)}
+      notice={NOTICES[str(params.error)]}
     />
   );
 }
 
 export default function LoginPage(props: PageProps<"/login">) {
   return (
-    <main className="flex flex-1 items-center justify-center bg-amber-50/60 p-6">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-sm ring-1 ring-stone-200">
-        <h1 className="mb-1 text-center text-2xl font-bold text-stone-900">
-          מתכונים משפחתיים
-        </h1>
-        <p className="mb-6 text-center text-sm text-stone-500">
-          ספר המתכונים של המשפחה
-        </p>
-        <Suspense fallback={<div className="h-72" />}>
-          <LoginPanel {...props} />
-        </Suspense>
-      </div>
-    </main>
+    <AuthShell title="שמחים שחזרת" subtitle="התחברי כדי לראות את המתכונים שלך">
+      <Suspense fallback={<div className="h-[380px]" />}>
+        <LoginPanel {...props} />
+      </Suspense>
+    </AuthShell>
   );
 }

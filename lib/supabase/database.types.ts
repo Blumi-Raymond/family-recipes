@@ -1,4 +1,4 @@
-// Types that mirror supabase/migrations/20261123210000_initial_schema.sql.
+// Types that mirror supabase/migrations/ (initial schema + groups).
 // Written by hand for now. When the schema changes, update this file
 // (later we can generate it automatically with the Supabase CLI).
 
@@ -14,6 +14,7 @@ export type ContentLanguage = "he" | "en";
 export type KosherType = "dairy" | "meat" | "pareve";
 export type RecipeSourceType = "manual" | "scan" | "import";
 export type TagCategory = "protein" | "dish" | "occasion" | "other";
+export type GroupRole = "owner" | "member";
 
 export type Database = {
   public: {
@@ -23,7 +24,6 @@ export type Database = {
           id: string;
           display_name: string;
           ui_language: ContentLanguage;
-          is_approved: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -32,7 +32,6 @@ export type Database = {
           id: string;
           display_name?: string;
           ui_language?: ContentLanguage;
-          is_approved?: boolean;
         };
         Update: {
           display_name?: string;
@@ -40,9 +39,34 @@ export type Database = {
         };
         Relationships: [];
       };
+      groups: {
+        Row: {
+          id: string;
+          name: string;
+          is_personal: boolean; // the user's private group ("My kitchen")
+          created_by: string | null;
+          created_at: string;
+        };
+        // Created by the database (sign-up trigger). Sharing comes later.
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      group_members: {
+        Row: {
+          group_id: string;
+          user_id: string;
+          role: GroupRole;
+          created_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
       cookbooks: {
         Row: {
           id: string;
+          group_id: string;
           title: string;
           author: string | null;
           language: ContentLanguage;
@@ -54,6 +78,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
+          group_id?: string; // default: my personal group
           title: string;
           author?: string | null;
           language?: ContentLanguage;
@@ -72,6 +97,7 @@ export type Database = {
       source_pages: {
         Row: {
           id: string;
+          group_id: string;
           cookbook_id: string | null;
           page_number: number | null;
           image_path: string;
@@ -80,6 +106,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
+          group_id?: string; // default: my personal group
           cookbook_id?: string | null;
           page_number?: number | null;
           image_path: string;
@@ -94,6 +121,7 @@ export type Database = {
       recipes: {
         Row: {
           id: string;
+          group_id: string;
           title: string;
           description: string | null;
           language: ContentLanguage;
@@ -116,6 +144,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
+          group_id?: string; // default: my personal group
           title: string;
           kosher_type: KosherType; // required, no default
           description?: string | null;
@@ -281,12 +310,16 @@ export type Database = {
       };
     };
     Functions: {
-      is_family_member: { Args: Record<string, never>; Returns: boolean };
+      is_group_member: { Args: { p_group_id: string }; Returns: boolean };
+      personal_group_id: { Args: Record<string, never>; Returns: string };
+      // null = email not registered; otherwise providers, e.g. ["email"], ["google"]
+      login_methods: { Args: { p_email: string }; Returns: string[] | null };
     };
     Enums: {
       content_language: ContentLanguage;
       kosher_type: KosherType;
       recipe_source_type: RecipeSourceType;
+      group_role: GroupRole;
     };
     CompositeTypes: Record<string, never>;
   };

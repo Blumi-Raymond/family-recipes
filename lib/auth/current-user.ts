@@ -8,7 +8,6 @@ export type CurrentUser = {
   id: string;
   email: string;
   displayName: string;
-  isApproved: boolean;
 };
 
 export async function getCurrentUser(): Promise<CurrentUser> {
@@ -20,7 +19,7 @@ export async function getCurrentUser(): Promise<CurrentUser> {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("display_name, is_approved")
+    .select("display_name")
     .eq("id", claims.sub)
     .maybeSingle();
 
@@ -28,6 +27,5 @@ export async function getCurrentUser(): Promise<CurrentUser> {
     id: claims.sub,
     email: claims.email ?? "",
     displayName: profile?.display_name || claims.email || "",
-    isApproved: profile?.is_approved ?? false,
   };
 }

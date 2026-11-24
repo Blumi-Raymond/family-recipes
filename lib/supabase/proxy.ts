@@ -1,19 +1,16 @@
 // Runs on every request (called from the root proxy.ts). Two jobs:
 // 1. Keep the login session fresh (refresh the cookies when needed).
-// 2. Send people to the right place:
-//    - not logged in            -> /login
-//    - logged in, not approved  -> /pending ("waiting for approval")
-//    - approved                 -> anywhere (but not back to /login or /pending)
+// 2. Not logged in -> /login. Logged in -> not back to /login or /signup.
 //
-// This is a convenience for the screens. The real protection is in the
-// database (RLS): an unapproved user gets no data even if she reaches a page.
+// Who sees WHICH data is decided in the database (RLS + groups),
+// not here: every user sees only her own groups' recipes.
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "./database.types";
 
 // Pages anyone can open, logged in or not
 function isPublicPath(path: string) {
-  return path === "/login" || path.startsWith("/auth/");
+  return path === "/login" || path === "/signup" || path.startsWith("/auth/");
 }
 
 export async function updateSession(request: NextRequest) {
@@ -64,24 +61,8 @@ export async function updateSession(request: NextRequest) {
     return redirectTo("/login", next);
   }
 
-  // --- Logged in: is she approved? ---
-  // The auth callback must be allowed to finish no matter what.
-  if (path.startsWith("/auth/")) return response;
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("is_approved")
-    .eq("id", userId)
-    .maybeSingle();
-  const approved = profile?.is_approved === true;
-
-  if (!approved) {
-    return path === "/pending" ? response : redirectTo("/pending");
-  }
-
-  if (path === "/login" || path === "/pending") {
-    return redirectTo("/");
-  }
+  // --- Logged in ---
+  if (path === "/login" || path === "/signup") return redirectTo("/");
 
   return response;
 }

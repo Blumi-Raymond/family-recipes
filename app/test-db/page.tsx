@@ -35,13 +35,6 @@ async function ConnectionStatus() {
         </p>
       )}
 
-      {!error && tags?.length === 0 && (
-        <p className="rounded bg-amber-100 p-3 text-amber-900">
-          0 תוויות זה תקין בשלב הזה. מסד הנתונים מוגן: רק משתמשת מחוברת
-          ומאושרת רואה נתונים. אחרי שנבנה את מסך ההתחברות, כאן יופיעו 15
-          התוויות.
-        </p>
-      )}
 
       {tags && tags.length > 0 && (
         <ul className="flex flex-wrap gap-2">
