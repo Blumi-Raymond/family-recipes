@@ -1,21 +1,24 @@
 "use server";
 // Server Actions for login / sign-up / Google / logout.
+// Errors are returned as keys (authErrors in lib/i18n/dictionaries),
+// so the form shows them in the page's language.
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { authErrorMessage } from "@/lib/auth/errors";
-import { safeNext } from "@/lib/auth/safe-next";
+import { actionLocale } from "@/lib/i18n/action-locale";
+import { localePath } from "@/lib/i18n/config";
+import { MIN_PASSWORD, authErrorKey, type AuthErrorKey } from "./errors";
+import { safeNext } from "./safe-next";
 
 export type AuthFormState = {
-  error?: string;
+  error?: AuthErrorKey;
   notRegistered?: boolean; // login: show "go to sign-up" link
   alreadyRegistered?: boolean; // sign-up: show "go to login" link
-  message?: string; // success message (e.g. "check your email")
+  checkEmail?: boolean; // sign-up: "we sent you an email" (only if Confirm email is on)
   email?: string; // keep what she typed, so the field isn't emptied
   name?: string;
 };
 
-const MIN_PASSWORD = 8;
 
 function text(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -27,7 +30,7 @@ async function siteOrigin() {
   return h.get("origin") ?? `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}`;
 }
 
-// Which ways can this email log in? null = not registered.
+// Which ways can this email log in? null = not registered, undefined = unknown.
 async function loginMethods(email: string) {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("login_methods", { p_email: email });
@@ -45,11 +48,12 @@ export async function signIn(
   _prev: AuthFormState,
   formData: FormData,
 ): Promise<AuthFormState> {
+  const locale = await actionLocale(formData);
   const email = text(formData, "email").toLowerCase();
   const password = formData.get("password");
 
   if (!email || typeof password !== "string" || !password) {
-    return { error: "צריך למלא אימייל וסיסמה.", email };
+    return { error: "missingLogin", email };
   }
 
   const supabase = await createClient();
@@ -58,20 +62,15 @@ export async function signIn(
   if (error?.code === "invalid_credentials") {
     // Find out WHY: unknown email, Google-only account, or wrong password
     const methods = await loginMethods(email);
-    if (methods === null) {
-      return { error: "האימייל הזה לא רשום.", notRegistered: true, email };
-    }
+    if (methods === null) return { error: "notRegistered", notRegistered: true, email };
     if (methods && !methods.includes("email") && methods.includes("google")) {
-      return {
-        error: "החשבון הזה נרשם עם Google. אפשר להתחבר בכפתור Google למעלה.",
-        email,
-      };
+      return { error: "googleOnlyLogin", email };
     }
-    if (methods) return { error: "הסיסמה שגויה.", email };
+    if (methods) return { error: "wrongPassword", email };
   }
-  if (error) return { error: authErrorMessage(error), email };
+  if (error) return { error: authErrorKey(error), email };
 
-  redirect(safeNext(formData.get("next")));
+  redirect(safeNext(formData.get("next"), localePath(locale)));
 }
 
 // ---------------------------------------------------------------------
@@ -81,26 +80,23 @@ export async function signUp(
   _prev: AuthFormState,
   formData: FormData,
 ): Promise<AuthFormState> {
+  const locale = await actionLocale(formData);
   const name = text(formData, "name");
   const email = text(formData, "email").toLowerCase();
   const password = formData.get("password");
 
   if (!name || !email || typeof password !== "string" || !password) {
-    return { error: "צריך למלא שם, אימייל וסיסמה.", email, name };
+    return { error: "missingSignup", email, name };
   }
   if (password.length < MIN_PASSWORD) {
-    return { error: `הסיסמה צריכה להיות לפחות ${MIN_PASSWORD} תווים.`, email, name };
+    return { error: "passwordTooShort", email, name };
   }
 
   const methods = await loginMethods(email);
   if (methods) {
     return methods.includes("email")
-      ? { error: "כבר יש חשבון עם האימייל הזה.", alreadyRegistered: true, email, name }
-      : {
-          error: "האימייל הזה כבר רשום דרך Google. אפשר להתחבר בכפתור Google למעלה.",
-          email,
-          name,
-        };
+      ? { error: "alreadyRegistered", alreadyRegistered: true, email, name }
+      : { error: "googleOnlySignup", email, name };
   }
 
   const supabase = await createClient();
@@ -108,27 +104,26 @@ export async function signUp(
     email,
     password,
     options: {
-      emailRedirectTo: `${await siteOrigin()}/auth/callback`,
+      emailRedirectTo: `${await siteOrigin()}/auth/callback?next=${encodeURIComponent(localePath(locale))}`,
       // The database trigger handle_new_user() copies this into profiles.display_name
       data: { full_name: name },
     },
   });
-  if (error) return { error: authErrorMessage(error), email, name };
+  if (error) return { error: authErrorKey(error), email, name };
 
   // "Confirm email" is OFF in Supabase -> she is logged in already
-  if (data.session) redirect("/");
+  if (data.session) redirect(localePath(locale));
 
   // "Confirm email" is still ON in Supabase -> an email was sent
-  return {
-    message: `שלחנו מייל אל ${email}. לחצי על הקישור שבמייל כדי להיכנס.`,
-  };
+  return { checkEmail: true, email };
 }
 
 // ---------------------------------------------------------------------
 // Log in (or sign up) with Google
 // ---------------------------------------------------------------------
 export async function signInWithGoogle(formData: FormData) {
-  const next = safeNext(formData.get("next"));
+  const locale = await actionLocale(formData);
+  const next = safeNext(formData.get("next"), localePath(locale));
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
@@ -140,7 +135,7 @@ export async function signInWithGoogle(formData: FormData) {
 
   if (error || !data.url) {
     console.error("Google sign-in error:", error?.code, error?.message);
-    redirect("/login?error=google");
+    redirect(`${localePath(locale, "/login")}?error=google`);
   }
   redirect(data.url);
 }
@@ -148,8 +143,9 @@ export async function signInWithGoogle(formData: FormData) {
 // ---------------------------------------------------------------------
 // Log out
 // ---------------------------------------------------------------------
-export async function signOut() {
+export async function signOut(formData: FormData) {
+  const locale = await actionLocale(formData);
   const supabase = await createClient();
   await supabase.auth.signOut();
-  redirect("/login");
+  redirect(localePath(locale, "/login"));
 }

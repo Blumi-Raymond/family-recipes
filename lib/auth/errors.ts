@@ -1,22 +1,27 @@
-// Turns Supabase Auth error codes into Hebrew messages for the screen.
-// Codes: https://supabase.com/docs/guides/auth/debugging/error-codes
-const MESSAGES: Record<string, string> = {
-  invalid_credentials: "האימייל או הסיסמה לא נכונים.",
-  email_not_confirmed:
-    "עדיין לא אישרת את כתובת האימייל. חפשי אצלך בתיבה מייל מהמערכת ולחצי על הקישור שבו.",
-  user_already_exists: "כבר יש חשבון עם האימייל הזה. אפשר להתחבר.",
-  email_exists: "כבר יש חשבון עם האימייל הזה. אפשר להתחבר.",
-  weak_password: "הסיסמה חלשה מדי. כדאי לבחור סיסמה ארוכה יותר.",
-  email_address_invalid: "כתובת האימייל לא תקינה.",
-  signup_disabled: "ההרשמה סגורה כרגע.",
-  over_email_send_rate_limit:
-    "נשלחו יותר מדי מיילים בזמן קצר. כדאי לחכות כמה דקות ולנסות שוב.",
-  over_request_rate_limit: "יותר מדי ניסיונות. כדאי לחכות כמה דקות ולנסות שוב.",
+// Turns Supabase Auth error codes into message keys (texts: authErrors in
+// lib/i18n/dictionaries). Codes: https://supabase.com/docs/guides/auth/debugging/error-codes
+import type { Dictionary } from "@/lib/i18n/dictionaries/he";
+
+// Minimum password length (checked in the form and again on the server)
+export const MIN_PASSWORD = 8;
+
+export type AuthErrorKey = keyof Dictionary["authErrors"];
+
+const KEYS: Record<string, AuthErrorKey> = {
+  invalid_credentials: "invalidCredentials",
+  email_not_confirmed: "emailNotConfirmed",
+  user_already_exists: "alreadyRegistered",
+  email_exists: "alreadyRegistered",
+  weak_password: "weakPassword",
+  email_address_invalid: "invalidEmail",
+  signup_disabled: "signupDisabled",
+  over_email_send_rate_limit: "tooManyEmails",
+  over_request_rate_limit: "tooManyRequests",
 };
 
-export function authErrorMessage(error: { code?: string; message: string }) {
-  if (error.code && MESSAGES[error.code]) return MESSAGES[error.code];
+export function authErrorKey(error: { code?: string; message: string }): AuthErrorKey {
+  if (error.code && KEYS[error.code]) return KEYS[error.code];
   // Unknown error: log the original (visible in the terminal / Vercel logs)
   console.error("Supabase auth error:", error.code, error.message);
-  return "משהו השתבש. כדאי לנסות שוב בעוד רגע.";
+  return "unknown";
 }

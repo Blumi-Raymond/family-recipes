@@ -92,9 +92,9 @@ export function Divider({ children }: { children: ReactNode }) {
 }
 
 // ---------------------------------------------------------------------
-// Logo (pot icon + name)
+// Logo (pot icon + site name, in the page's language)
 // ---------------------------------------------------------------------
-export function Logo() {
+export function Logo({ name }: { name: string }) {
   return (
     <div className="flex items-center gap-2.5">
       <svg
@@ -114,7 +114,7 @@ export function Logo() {
         <path d="M9 7c0-1.5 1-1.5 1-3" />
         <path d="M13 7c0-1.5 1-1.5 1-3" />
       </svg>
-      <span className="text-[17px] font-bold tracking-tight">מתכונים משפחתיים</span>
+      <span className="text-[17px] font-bold tracking-tight">{name}</span>
     </div>
   );
 }

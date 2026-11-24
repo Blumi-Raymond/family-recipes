@@ -1,4 +1,4 @@
-// Runs on every request (called from the root proxy.ts). Two jobs:
+// Runs on every page request (called from the root proxy.ts). Two jobs:
 // 1. Keep the login session fresh (refresh the cookies when needed).
 // 2. Not logged in -> /login. Logged in -> not back to /login or /signup.
 //
@@ -6,14 +6,11 @@
 // not here: every user sees only her own groups' recipes.
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { defaultLocale, localePath, type Locale } from "@/lib/i18n/config";
 import type { Database } from "./database.types";
 
-// Pages anyone can open, logged in or not
-function isPublicPath(path: string) {
-  return path === "/login" || path === "/signup" || path.startsWith("/auth/");
-}
-
-export async function updateSession(request: NextRequest) {
+// `locale` is the URL's language; null for /auth/* (no language in the URL).
+export async function updateSession(request: NextRequest, locale: Locale | null) {
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient<Database>(
@@ -43,6 +40,11 @@ export async function updateSession(request: NextRequest) {
   const userId = data?.claims?.sub;
 
   const path = request.nextUrl.pathname;
+  const lang = locale ?? defaultLocale;
+  const loginPath = localePath(lang, "/login");
+  const signupPath = localePath(lang, "/signup");
+  // Pages anyone can open, logged in or not
+  const isPublic = path === loginPath || path === signupPath || locale === null;
 
   // A redirect that keeps any refreshed session cookies
   const redirectTo = (pathname: string, next?: string) => {
@@ -56,13 +58,13 @@ export async function updateSession(request: NextRequest) {
 
   // --- Not logged in ---
   if (!userId) {
-    if (isPublicPath(path)) return response;
-    const next = path === "/" ? undefined : path + request.nextUrl.search;
-    return redirectTo("/login", next);
+    if (isPublic) return response;
+    const next = path === localePath(lang) ? undefined : path + request.nextUrl.search;
+    return redirectTo(loginPath, next);
   }
 
   // --- Logged in ---
-  if (path === "/login" || path === "/signup") return redirectTo("/");
+  if (path === loginPath || path === signupPath) return redirectTo(localePath(lang));
 
   return response;
 }

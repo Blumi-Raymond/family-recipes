@@ -2,28 +2,38 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { Alert, Button, Divider, Field } from "@/components/ui";
-import { signUp, type AuthFormState } from "@/app/login/actions";
-import { GoogleButton } from "@/app/login/google-button";
+import { signUp, type AuthFormState } from "@/lib/auth/actions";
+import { MIN_PASSWORD } from "@/lib/auth/errors";
+import { useI18n } from "@/lib/i18n/client";
+import { fmt, localePath } from "@/lib/i18n/config";
+import { GoogleButton } from "../login/google-button";
 
 export function SignupForm({ initialEmail }: { initialEmail: string }) {
+  const { locale, t } = useI18n();
   const [state, action, pending] = useActionState<AuthFormState, FormData>(signUp, {
     email: initialEmail,
   });
 
-  if (state.message) return <Alert tone="success">{state.message}</Alert>;
+  if (state.checkEmail) {
+    return <Alert tone="success">{fmt(t.signup.checkEmail, { email: state.email ?? "" })}</Alert>;
+  }
 
-  const loginHref = `/login${state.email ? `?email=${encodeURIComponent(state.email)}` : ""}`;
+  const loginHref =
+    localePath(locale, "/login") +
+    (state.email ? `?email=${encodeURIComponent(state.email)}` : "");
+  const ltrField = locale === "he" ? "text-right" : "";
 
   return (
     <div className="flex flex-col gap-7">
       <GoogleButton />
-      <Divider>או</Divider>
+      <Divider>{t.auth.or}</Divider>
 
       <form action={action} className="flex flex-col gap-[18px]">
+        <input type="hidden" name="lang" value={locale} />
         <Field
           id="name"
           name="name"
-          label="שם"
+          label={t.auth.name}
           autoComplete="name"
           required
           defaultValue={state.name}
@@ -32,51 +42,51 @@ export function SignupForm({ initialEmail }: { initialEmail: string }) {
           id="email"
           name="email"
           type="email"
-          label="אימייל"
+          label={t.auth.email}
           dir="ltr"
           autoComplete="email"
           placeholder="name@gmail.com"
           required
           defaultValue={state.email}
           invalid={state.alreadyRegistered}
-          className="text-right"
+          className={ltrField}
         />
         <Field
           id="password"
           name="password"
           type="password"
-          label="סיסמה"
-          hint="לפחות 8 תווים"
+          label={t.auth.password}
+          hint={fmt(t.auth.passwordHint, { min: MIN_PASSWORD })}
           dir="ltr"
           autoComplete="new-password"
-          minLength={8}
+          minLength={MIN_PASSWORD}
           required
-          className="text-right"
+          className={ltrField}
         />
 
         {state.error && (
           <Alert>
-            {state.error}{" "}
+            {fmt(t.authErrors[state.error], { min: MIN_PASSWORD })}{" "}
             {state.alreadyRegistered && (
               <Link href={loginHref} className="font-semibold underline underline-offset-4">
-                להתחברות
+                {t.signup.toLogin}
               </Link>
             )}
           </Alert>
         )}
 
         <Button type="submit" disabled={pending} className="mt-1">
-          {pending ? "יוצרת חשבון..." : "יצירת חשבון"}
+          {pending ? t.signup.submitting : t.signup.submit}
         </Button>
       </form>
 
       <p className="text-center text-sm text-ink-soft">
-        כבר יש לך חשבון?{" "}
+        {t.signup.hasAccount}{" "}
         <Link
           href={loginHref}
           className="font-semibold text-brand underline underline-offset-4 hover:text-brand-dark"
         >
-          להתחברות
+          {t.signup.toLogin}
         </Link>
       </p>
     </div>

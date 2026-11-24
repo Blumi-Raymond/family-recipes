@@ -7,7 +7,8 @@ import { safeNext } from "@/lib/auth/safe-next";
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
   const code = searchParams.get("code");
-  const next = safeNext(searchParams.get("next"));
+  // "next" already includes the language (/he/...); proxy.ts adds one if not
+  const next = safeNext(searchParams.get("next"), "/");
 
   if (code) {
     const supabase = await createClient();
