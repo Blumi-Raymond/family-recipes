@@ -75,11 +75,21 @@ function Label({ htmlFor, children }: { htmlFor?: string; children: ReactNode })
   );
 }
 
-function Hint({ id, children }: { id?: string; children: ReactNode }) {
+// Small text under a field: a hint, or (in red) what needs fixing
+function Hint({ id, error, children }: { id?: string; error?: boolean; children: ReactNode }) {
   return (
-    <p id={id} className="text-xs text-ink-faint">
+    <p id={id} className={`text-xs ${error ? "font-medium text-danger" : "text-ink-faint"}`}>
       {children}
     </p>
+  );
+}
+
+// Text under a list row (ingredients, steps) explaining what to fix
+export function FieldError({ id, children }: { id?: string; children: ReactNode }) {
+  return (
+    <Hint id={id} error>
+      {children}
+    </Hint>
   );
 }
 
@@ -87,20 +97,27 @@ type FieldProps = ComponentProps<"input"> & {
   label: string;
   hint?: string;
   invalid?: boolean;
+  error?: string; // shown instead of the hint, in red
 };
 
-export function Field({ label, hint, invalid, id, className = "", ...props }: FieldProps) {
+export function Field({ label, hint, invalid, error, id, className = "", ...props }: FieldProps) {
+  const note = error ?? hint;
+  const bad = invalid || Boolean(error);
   return (
     <div className="flex flex-col gap-1.5">
       <Label htmlFor={id}>{label}</Label>
       <input
         id={id}
-        aria-invalid={invalid || undefined}
-        aria-describedby={hint && id ? `${id}-hint` : undefined}
-        className={`h-12 ${inputLook} ${invalid ? "border-danger" : "border-line"} ${className}`}
+        aria-invalid={bad || undefined}
+        aria-describedby={note && id ? `${id}-hint` : undefined}
+        className={`h-12 ${inputLook} ${bad ? "border-danger" : "border-line"} ${className}`}
         {...props}
       />
-      {hint && <Hint id={id ? `${id}-hint` : undefined}>{hint}</Hint>}
+      {note && (
+        <Hint id={id ? `${id}-hint` : undefined} error={Boolean(error)}>
+          {note}
+        </Hint>
+      )}
     </div>
   );
 }
@@ -126,22 +143,30 @@ export function TextArea({
   label,
   hint,
   invalid,
+  error,
   id,
   className = "",
   rows = 3,
   ...props
-}: ComponentProps<"textarea"> & { label?: string; hint?: string; invalid?: boolean }) {
+}: ComponentProps<"textarea"> & { label?: string; hint?: string; invalid?: boolean; error?: string }) {
+  const note = error ?? hint;
+  const bad = invalid || Boolean(error);
   return (
     <div className="flex flex-col gap-1.5">
       {label && <Label htmlFor={id}>{label}</Label>}
       <textarea
         id={id}
         rows={rows}
-        aria-invalid={invalid || undefined}
-        className={`py-3 leading-relaxed ${inputLook} ${invalid ? "border-danger" : "border-line"} ${className}`}
+        aria-invalid={bad || undefined}
+        aria-describedby={note && id ? `${id}-hint` : undefined}
+        className={`py-3 leading-relaxed ${inputLook} ${bad ? "border-danger" : "border-line"} ${className}`}
         {...props}
       />
-      {hint && <Hint>{hint}</Hint>}
+      {note && (
+        <Hint id={id ? `${id}-hint` : undefined} error={Boolean(error)}>
+          {note}
+        </Hint>
+      )}
     </div>
   );
 }
@@ -174,17 +199,18 @@ export function ChoiceGroup<T extends string>({
   options,
   value,
   onChange,
-  invalid,
   hint,
+  error,
 }: {
   legend: string;
   name: string;
   options: { value: T; label: string }[];
   value: T | "";
   onChange: (value: T) => void;
-  invalid?: boolean;
   hint?: string;
+  error?: string;
 }) {
+  const invalid = Boolean(error);
   return (
     <fieldset className="flex flex-col gap-1.5" aria-invalid={invalid || undefined}>
       <legend className="mb-1.5 text-[13px] font-medium text-ink">{legend}</legend>
@@ -215,7 +241,7 @@ export function ChoiceGroup<T extends string>({
           </label>
         ))}
       </div>
-      {hint && <Hint>{hint}</Hint>}
+      {(error ?? hint) && <Hint error={invalid}>{error ?? hint}</Hint>}
     </fieldset>
   );
 }

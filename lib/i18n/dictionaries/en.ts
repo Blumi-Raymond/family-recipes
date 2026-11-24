@@ -65,7 +65,6 @@ const en: Dictionary = {
     en: "English",
   },
 
-  unitSuggestions: "cup,cups,tbsp,tsp,g,kg,ml,l,oz,lb,stick,package,pinch,can,clove",
 
   time: {
     minutes: "{n} min",

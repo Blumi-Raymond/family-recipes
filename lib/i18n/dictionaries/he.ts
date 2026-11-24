@@ -68,8 +68,6 @@ const he = {
     en: "אנגלית",
   },
 
-  // Suggestions in the "unit" field (comma separated)
-  unitSuggestions: "כוס,כוסות,כף,כפות,כפית,כפיות,גרם,ק״ג,מ״ל,ליטר,יחידה,יחידות,חבילה,קורט,שקית,פחית",
 
   time: {
     minutes: "{n} דק׳",

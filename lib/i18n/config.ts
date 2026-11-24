@@ -41,3 +41,8 @@ export function fmt(template: string, values: Record<string, string | number>): 
     key in values ? String(values[key]) : match,
   );
 }
+
+// "1 recipe" / "5 recipes": pick the right text by number
+export function plural(n: number, one: string, other: string): string {
+  return n === 1 ? one : fmt(other, { n });
+}
