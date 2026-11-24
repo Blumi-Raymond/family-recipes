@@ -2,9 +2,15 @@
 // In Next.js 16, cookies() is async, so this function is async too.
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import type { Database } from "./database.types";
 
 export async function createClient() {
+  // Anything that talks to Supabase runs at request time only.
+  // Without this, Next.js may run it while preparing the page in advance
+  // (prefetch), and Supabase's session check (Date.now) triggers the
+  // "Blocking Route: unstable value Date.now()" warning.
+  await connection();
   const cookieStore = await cookies();
 
   return createServerClient<Database>(
