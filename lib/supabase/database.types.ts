@@ -1,4 +1,4 @@
-// Types that mirror supabase/migrations/ (initial schema + groups + recipe form).
+// Types that mirror supabase/migrations/ (initial schema + groups + recipe form + scan).
 // Written by hand for now. When the schema changes, update this file
 // (later we can generate it automatically with the Supabase CLI).
 
@@ -15,6 +15,8 @@ export type KosherType = "dairy" | "meat" | "pareve";
 export type RecipeSourceType = "manual" | "scan" | "import";
 export type TagCategory = "protein" | "dish" | "occasion" | "other";
 export type GroupRole = "owner" | "member";
+export type ScanStatus = "pending" | "succeeded" | "failed";
+export type ScanMethod = "direct" | "batch";
 
 export type Database = {
   public: {
@@ -304,6 +306,45 @@ export type Database = {
         Update: never;
         Relationships: [];
       };
+      // Who may use the AI scan. Read-only for users (edited from the dashboard).
+      scan_allowances: {
+        Row: {
+          user_id: string;
+          daily_limit: number; // free scans per day (Israel time)
+          scan_credits: number; // bought scans, used after daily_limit
+          note: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      // Log of every AI call. Written only via start_scan / finish_scan.
+      scans: {
+        Row: {
+          id: string;
+          user_id: string;
+          group_id: string;
+          page_ids: string[]; // in reading order
+          method: ScanMethod;
+          model: string;
+          status: ScanStatus;
+          used_credit: boolean;
+          error_code: string | null;
+          stop_reason: string | null;
+          input_tokens: number | null;
+          output_tokens: number | null;
+          cost_usd: number | null;
+          duration_ms: number | null;
+          result: Json | null;
+          created_at: string;
+          finished_at: string | null;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
     };
     Views: {
       // Recipes that are not in the trash. The app reads from here by default.
@@ -320,6 +361,28 @@ export type Database = {
       // Saves a whole recipe in one transaction; returns its id.
       // Shape of p_recipe: see lib/recipes/schema.ts (RecipeInput).
       save_recipe: { Args: { p_recipe: Json }; Returns: string };
+      // Checks the quota and logs a pending scan in one step; returns its id.
+      // Errors: SC001 no permission, SC002 quota used up, SC003 bad pages.
+      start_scan: { Args: { p_page_ids: string[]; p_model: string }; Returns: string };
+      // Records how a scan ended (once). false = not mine / already finished.
+      finish_scan: {
+        Args: {
+          p_scan_id: string;
+          p_status: "succeeded" | "failed";
+          p_error_code?: string | null;
+          p_stop_reason?: string | null;
+          p_input_tokens?: number | null;
+          p_output_tokens?: number | null;
+          p_cost_usd?: number | null;
+          p_duration_ms?: number | null;
+          p_result?: Json | null;
+        };
+        Returns: boolean;
+      };
+      my_scan_quota: {
+        Args: Record<string, never>;
+        Returns: { allowed: boolean; daily_limit: number; used_today: number; credits: number }[];
+      };
     };
     Enums: {
       content_language: ContentLanguage;

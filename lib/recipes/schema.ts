@@ -1,5 +1,5 @@
 // Rules for a recipe, exactly as it is sent to the database function
-// save_recipe() (see supabase/migrations/20261124200000_recipe_form.sql).
+// save_recipe() (see supabase/migrations/20261124300000_scan.sql).
 // Checked in the browser before saving, and again on the server.
 import * as z from "zod";
 import {
@@ -14,6 +14,7 @@ import {
 export const MAX_INGREDIENTS = 150;
 export const MAX_STEPS = 80;
 export const MAX_PHOTOS = 12;
+export const MAX_SOURCE_PAGES = 4;
 
 const positiveAmount = z.number({ error: "quantity" }).positive({ error: "quantity" }).nullable();
 
@@ -59,6 +60,14 @@ export const recipeSchema = z.object({
   photos: z
     .array(z.object({ path: imagePath("dishes"), is_cover: z.boolean() }))
     .max(MAX_PHOTOS, { error: "tooMany" }),
+  // Page photos the recipe came from (scan), in reading order.
+  // Missing = keep the recipe's current page links (normal edit).
+  // A NEW recipe with pages is saved as source_type 'scan' by the database.
+  source_pages: z
+    .array(uuid)
+    .max(MAX_SOURCE_PAGES, { error: "tooMany" })
+    .refine((ids) => new Set(ids).size === ids.length, { error: "tooMany" })
+    .optional(),
 });
 
 export type RecipeInput = z.infer<typeof recipeSchema>;
