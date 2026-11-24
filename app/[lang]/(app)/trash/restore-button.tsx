@@ -18,8 +18,11 @@ export function RestoreButton({ id }: { id: string }) {
         disabled={pending}
         onClick={() =>
           startTransition(async () => {
-            const result = await restoreRecipe(id);
-            setFailed(!result.ok);
+            try {
+              setFailed(!(await restoreRecipe(id)).ok);
+            } catch {
+              setFailed(true);
+            }
           })
         }
       >

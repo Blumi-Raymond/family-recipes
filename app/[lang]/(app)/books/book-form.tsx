@@ -63,7 +63,13 @@ export function BookForm({ initial, groupId }: { initial: BookFormInitial | null
     setFormError(null);
 
     startTransition(async () => {
-      const result = await saveCookbook(initial?.id ?? null, parsed.data);
+      let result;
+      try {
+        result = await saveCookbook(initial?.id ?? null, parsed.data);
+      } catch {
+        setFormError("generic");
+        return;
+      }
       if (result.ok) {
         router.push(booksPath);
       } else {

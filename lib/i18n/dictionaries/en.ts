@@ -33,6 +33,12 @@ const en: Dictionary = {
   },
 
 
+  errorPage: {
+    title: "Something went wrong",
+    text: "We couldn't load this page. Please try again in a moment.",
+    retry: "Try again",
+  },
+
   notFound: {
     title: "Page not found",
     text: "The link may be wrong, or the page was removed.",

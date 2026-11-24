@@ -98,9 +98,12 @@ export function initialFormState(recipe: RecipeDetails | null, locale: Locale): 
   // heading appears once, above its items.
   const ingredients: IngredientRow[] = [];
   let section: string | null = null;
+  // A change of heading adds a heading row. Going back to "no heading"
+  // (possible in scanned recipes) adds an empty heading row, so saving the
+  // form again keeps those items without a heading.
   recipe.ingredients.forEach((ing, i) => {
-    if (ing.section && ing.section !== section) {
-      ingredients.push({ key: `ih${i}`, kind: "heading", text: ing.section });
+    if (ing.section !== section && (ing.section || section)) {
+      ingredients.push({ key: `ih${i}`, kind: "heading", text: ing.section ?? "" });
     }
     section = ing.section;
     ingredients.push({
@@ -118,8 +121,8 @@ export function initialFormState(recipe: RecipeDetails | null, locale: Locale): 
   const steps: StepRow[] = [];
   section = null;
   recipe.steps.forEach((step, i) => {
-    if (step.section && step.section !== section) {
-      steps.push({ key: `sh${i}`, kind: "heading", text: step.section });
+    if (step.section !== section && (step.section || section)) {
+      steps.push({ key: `sh${i}`, kind: "heading", text: step.section ?? "" });
     }
     section = step.section;
     steps.push({ key: `s${i}`, kind: "item", text: step.instruction });

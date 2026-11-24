@@ -54,29 +54,31 @@ export async function listRecipes(filters: RecipeFilters): Promise<RecipeCard[]>
   let query = supabase
     .from("active_recipes")
     .select("id, title, language, kosher_type, cookbook_id")
-    .order("created_at", { ascending: false })
-    .limit(500);
+    .order("created_at", { ascending: false });
   if (filters.q) query = query.ilike("title", likePattern(filters.q));
   if (filters.kosher) query = query.eq("kosher_type", filters.kosher);
   if (filters.bookId) query = query.eq("cookbook_id", filters.bookId);
-  if (idsWithTags) query = query.in("id", idsWithTags);
 
-  const { data: recipes, error } = await query;
-  if (error) fail("listRecipes", error);
-  if (recipes.length === 0) return [];
-
-  const ids = recipes.map((r) => r.id);
-  const bookIds = [...new Set(recipes.map((r) => r.cookbook_id).filter((b): b is string => !!b))];
-  const [covers, books] = await Promise.all([
-    supabase.from("recipe_photos").select("recipe_id, image_path").eq("is_cover", true).in("recipe_id", ids),
-    bookIds.length
-      ? supabase.from("cookbooks").select("id, title").in("id", bookIds)
-      : Promise.resolve({ data: [], error: null }),
+  // Covers and book titles: fetched whole (RLS keeps it to her groups) rather
+  // than "where id in (...hundreds of ids)", which can make the request URL
+  // too long once there are many recipes.
+  const [found, covers, books] = await Promise.all([
+    query,
+    supabase.from("recipe_photos").select("recipe_id, image_path").eq("is_cover", true),
+    supabase.from("cookbooks").select("id, title"),
   ]);
+  if (found.error) fail("listRecipes", found.error);
   if (covers.error) fail("listRecipes.covers", covers.error);
   if (books.error) fail("listRecipes.books", books.error);
 
-  const coverOf = new Map(covers.data.map((c) => [c.recipe_id, c.image_path]));
+  const withTags = idsWithTags ? new Set(idsWithTags) : null;
+  const recipes = withTags ? found.data.filter((r) => withTags.has(r.id)) : found.data;
+  if (recipes.length === 0) return [];
+
+  const shown = new Set(recipes.map((r) => r.id));
+  const coverOf = new Map(
+    covers.data.filter((c) => shown.has(c.recipe_id)).map((c) => [c.recipe_id, c.image_path]),
+  );
   const bookTitle = new Map(books.data.map((b) => [b.id, b.title]));
   const urls = await signImageUrls([...coverOf.values()], "thumb");
 

@@ -49,8 +49,12 @@ export function ConfirmButton({
           disabled={pending}
           onClick={() =>
             startTransition(async () => {
-              const message = await onConfirm();
-              if (message) setError(message);
+              try {
+                const message = await onConfirm();
+                if (message) setError(message);
+              } catch {
+                setError(t.formErrors.generic); // no connection etc.
+              }
             })
           }
         >

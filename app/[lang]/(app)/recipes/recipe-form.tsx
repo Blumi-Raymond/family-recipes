@@ -99,8 +99,12 @@ export function RecipeForm({ recipe, groupId, books, tags, initialBookId }: Prop
   useEffect(() => {
     if (Object.keys(errors).length === 0) return;
     const first = formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
-    first?.focus();
-    first?.scrollIntoView({ block: "center", behavior: "smooth" });
+    if (!first) return;
+    // A group of choices (fieldset) can't take focus: focus its first option
+    const target =
+      first.tagName === "FIELDSET" ? (first.querySelector<HTMLElement>("input") ?? first) : first;
+    target.focus({ preventScroll: true });
+    first.scrollIntoView({ block: "center", behavior: "smooth" });
   }, [errors]);
 
   function onSubmit(e: FormEvent) {
@@ -117,7 +121,14 @@ export function RecipeForm({ recipe, groupId, books, tags, initialBookId }: Prop
     setFormError(null);
 
     startTransition(async () => {
-      const saved = await saveRecipe(result.input);
+      let saved;
+      try {
+        saved = await saveRecipe(result.input);
+      } catch {
+        // No connection / server didn't answer: keep everything she typed
+        setFormError("generic");
+        return;
+      }
       if (saved.ok) {
         setDirty(false);
         router.push(localePath(locale, `/recipes/${saved.id}`));
