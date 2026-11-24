@@ -30,7 +30,7 @@ export const contentLanguage = z.enum(["he", "en"]);
 export const uuid = z.uuid();
 
 // "<group uuid>/<folder>/<uuid>.webp" (or .jpg) — the only paths the app creates
-export const imagePath = (folder: "recipes" | "cookbooks") =>
+export const imagePath = (folder: "dishes" | "covers") =>
   z
     .string()
     .regex(

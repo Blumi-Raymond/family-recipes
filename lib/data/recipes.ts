@@ -1,6 +1,8 @@
 import "server-only";
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { signImageUrls } from "@/lib/images/server";
+import { trashDaysLeft } from "@/lib/recipes/format";
 import type { KosherType } from "@/lib/recipes/schema";
 import { isUuid } from "@/lib/validation";
 import { fail } from "./common";
@@ -126,8 +128,9 @@ export type RecipeDetails = {
   photos: { path: string; is_cover: boolean; url: string | null; thumbUrl: string | null }[];
 };
 
-// null = not found, in the trash, or not hers
-export async function getRecipe(id: string): Promise<RecipeDetails | null> {
+// null = not found, in the trash, or not hers.
+// cache(): the page and its title ask for the same recipe -> one database read.
+export const getRecipe = cache(async (id: string): Promise<RecipeDetails | null> => {
   if (!isUuid(id)) return null;
   const supabase = await createClient();
 
@@ -194,12 +197,17 @@ export async function getRecipe(id: string): Promise<RecipeDetails | null> {
       thumbUrl: thumbs.get(p.image_path) ?? null,
     })),
   };
-}
+});
 
 // ---------------------------------------------------------------------
 // Trash
 // ---------------------------------------------------------------------
-export type TrashedRecipe = { id: string; title: string; language: "he" | "en"; deleted_at: string };
+export type TrashedRecipe = {
+  id: string;
+  title: string;
+  language: "he" | "en";
+  daysLeft: number; // before it is deleted for good
+};
 
 export async function listTrash(): Promise<TrashedRecipe[]> {
   const supabase = await createClient();
@@ -209,5 +217,11 @@ export async function listTrash(): Promise<TrashedRecipe[]> {
     .not("deleted_at", "is", null)
     .order("deleted_at", { ascending: false });
   if (error) fail("listTrash", error);
-  return data.map((r) => ({ ...r, deleted_at: r.deleted_at as string }));
+  const now = Date.now();
+  return data.map((r) => ({
+    id: r.id,
+    title: r.title,
+    language: r.language,
+    daysLeft: trashDaysLeft(r.deleted_at as string, now),
+  }));
 }

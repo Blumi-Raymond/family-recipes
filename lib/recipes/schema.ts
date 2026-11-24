@@ -57,7 +57,7 @@ export const recipeSchema = z.object({
   steps: z.array(stepSchema).max(MAX_STEPS, { error: "tooMany" }),
   tag_ids: z.array(uuid).max(50, { error: "tooMany" }),
   photos: z
-    .array(z.object({ path: imagePath("recipes"), is_cover: z.boolean() }))
+    .array(z.object({ path: imagePath("dishes"), is_cover: z.boolean() }))
     .max(MAX_PHOTOS, { error: "tooMany" }),
 });
 

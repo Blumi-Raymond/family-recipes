@@ -36,8 +36,26 @@ Do not add new colors without updating this table and `globals.css`.
 - Page content: `max-w-5xl` with 24px side padding.
 
 ## Components
-- Primary action = `<Button>` (brand). Secondary = `<Button variant="secondary">` (white with border).
-- Every input = `<Field label=...>` (always a visible label).
+All in `components/ui.tsx` unless noted. Build screens from these.
+- Primary action = `<Button>` (brand). Secondary = `variant="secondary"`. Destructive = `variant="danger"`.
+  `size="sm"` (40px) for actions inside a page; `block={false}` when it shouldn't fill the width.
+- A link that looks like a button = `<LinkButton>`.
+- Every input = `<Field label=...>` / `<TextArea>` / `<Select>` (always a visible label).
+  Errors: pass `error="..."` — the field turns red and the message replaces the hint.
+- Rows in a list (ingredients, steps) = `<Input aria-label=...>` under visible column titles, `<FieldError>` under the row.
+- One choice out of a few (meat/dairy/pareve, language) = `<ChoiceGroup>`.
+- On/off filters and tags = `<Chip selected>`. Read-only label = `<Badge>` (`tone="brand"` for meat/dairy/pareve).
+- Page title row = `<PageHeader title actions>`. Empty list = `<EmptyState>`. Form part = `<FormSection title>`.
 - Errors/success = `<Alert>`; keep text short and human ("הסיסמה שגויה.").
+- Images = `<Photo>` (`components/photo.tsx`, soft placeholder when missing); uploading = `<PhotoPicker>`.
+- "Are you sure?" = `<ConfirmButton>` (`components/confirm-button.tsx`) — in place, no browser pop-ups; focus starts on "No".
+- Loading = soft `bg-brand-tint` shapes with `animate-pulse` (`components/skeletons.tsx`).
 - Icons: thin outline (stroke 1.6–1.8), brand color, inline SVG.
 - Text uses feminine Hebrew forms (the users are women in the family), e.g. "התחברי".
+
+## Two languages
+- The interface language is the first part of the URL (`/he/...`, `/en/...`). All text comes from
+  `lib/i18n/dictionaries/he.ts` (source) and `en.ts` (must match). Never write UI text in a component.
+- Use logical CSS (`ms-`, `me-`, `ps-`, `pe-`, `start-`, `end-`, `text-start`) so layouts flip by themselves.
+- Recipe and cookbook **content** keeps its own language: put `lang` and `dir={dirOf(language)}` on it
+  (an English recipe reads left-to-right on the Hebrew site, and the other way round).

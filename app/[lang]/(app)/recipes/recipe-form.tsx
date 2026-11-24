@@ -297,7 +297,7 @@ export function RecipeForm({ recipe, groupId, books, tags, initialBookId }: Prop
         <PhotoPicker
           label={fmt(t.images.max, { max: MAX_PHOTOS })}
           groupId={groupId}
-          folder="recipes"
+          folder="dishes"
           photos={form.photos}
           setPhotos={setPhotos}
           max={MAX_PHOTOS}

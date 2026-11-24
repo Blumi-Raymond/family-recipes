@@ -1,18 +1,21 @@
 "use client";
 // "English" / "עברית" button: opens the same page in the other language.
 // A plain <a> (full page load) on purpose: <html lang dir> changes too.
+//
+// The current address is known only when the page is requested, so the
+// link is filled in inside <Suspense>; until then it points to the other
+// language's home page.
 import { Suspense } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n/client";
-import { switchLocalePath } from "@/lib/i18n/config";
+import { localePath, switchLocalePath } from "@/lib/i18n/config";
 
-function SwitchLink({ search }: { search: string }) {
+function SwitchLink({ href }: { href?: string }) {
   const { locale, t } = useI18n();
-  const pathname = usePathname();
   const other = locale === "he" ? "en" : "he";
   return (
     <a
-      href={switchLocalePath(pathname, other) + (search ? `?${search}` : "")}
+      href={href ?? localePath(other)}
       hrefLang={other}
       lang={other}
       aria-label={t.language.switchLabel}
@@ -27,15 +30,19 @@ function SwitchLink({ search }: { search: string }) {
   );
 }
 
-// Keeps ?next=... etc. when switching. Reading the query needs <Suspense>.
-function SwitchLinkWithQuery() {
-  return <SwitchLink search={useSearchParams().toString()} />;
+// Same page, other language; keeps ?next=... etc.
+function CurrentPageSwitch() {
+  const { locale } = useI18n();
+  const pathname = usePathname();
+  const search = useSearchParams().toString();
+  const other = locale === "he" ? "en" : "he";
+  return <SwitchLink href={switchLocalePath(pathname, other) + (search ? `?${search}` : "")} />;
 }
 
 export function LanguageSwitch() {
   return (
-    <Suspense fallback={<SwitchLink search="" />}>
-      <SwitchLinkWithQuery />
+    <Suspense fallback={<SwitchLink />}>
+      <CurrentPageSwitch />
     </Suspense>
   );
 }

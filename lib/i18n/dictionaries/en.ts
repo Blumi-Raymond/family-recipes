@@ -32,12 +32,6 @@ const en: Dictionary = {
     genericError: "Something went wrong. Please try again in a moment.",
   },
 
-  home: {
-    hello: "Hello {name}",
-    subtitle: "Your cookbooks and recipes will appear here soon.",
-    soon: "Coming soon",
-    soonText: "Adding cookbooks and recipes, search, and filtering by meat, dairy and pareve.",
-  },
 
   notFound: {
     title: "Page not found",

@@ -1,13 +1,27 @@
 "use client";
 // The site's main links. Client component only to mark the current page.
+// The current address is known only at request time, so the marked version
+// is filled in inside <Suspense> (until then: the same links, none marked).
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Suspense } from "react";
 import { useI18n } from "@/lib/i18n/client";
 import { localePath } from "@/lib/i18n/config";
 
 export function MainNav() {
+  return (
+    <Suspense fallback={<NavLinks pathname={null} />}>
+      <CurrentNav />
+    </Suspense>
+  );
+}
+
+function CurrentNav() {
+  return <NavLinks pathname={usePathname()} />;
+}
+
+function NavLinks({ pathname }: { pathname: string | null }) {
   const { locale, t } = useI18n();
-  const pathname = usePathname();
 
   const home = localePath(locale);
   const items = [
@@ -19,7 +33,9 @@ export function MainNav() {
 
   // "Recipes" is active on the list and on any single recipe page
   const isActive = (href: string) =>
-    href === home
+    pathname === null
+      ? false
+      : href === home
       ? pathname === home || (pathname.startsWith(`${home}/recipes/`) && pathname !== newRecipe)
       : pathname === href || pathname.startsWith(`${href}/`);
 

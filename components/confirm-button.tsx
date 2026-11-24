@@ -47,7 +47,6 @@ export function ConfirmButton({
           size="sm"
           block={false}
           disabled={pending}
-          autoFocus
           onClick={() =>
             startTransition(async () => {
               const message = await onConfirm();
@@ -62,6 +61,7 @@ export function ConfirmButton({
           size="sm"
           block={false}
           disabled={pending}
+          autoFocus
           onClick={() => {
             setAsking(false);
             setError(null);

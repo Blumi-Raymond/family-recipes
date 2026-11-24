@@ -114,7 +114,7 @@ export function BookForm({ initial, groupId }: { initial: BookFormInitial | null
       <PhotoPicker
         label={t.books.fieldCover}
         groupId={groupId}
-        folder="cookbooks"
+        folder="covers"
         photos={cover}
         setPhotos={setCover}
         max={1}
