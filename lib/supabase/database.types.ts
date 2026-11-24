@@ -1,4 +1,4 @@
-// Types that mirror supabase/migrations/ (initial schema + groups).
+// Types that mirror supabase/migrations/ (initial schema + groups + recipe form).
 // Written by hand for now. When the schema changes, update this file
 // (later we can generate it automatically with the Supabase CLI).
 
@@ -133,6 +133,7 @@ export type Database = {
           total_minutes: number | null;
           notes: string | null;
           cookbook_id: string | null;
+          page_number: number | null; // page in the cookbook
           source_note: string | null;
           source_type: RecipeSourceType;
           created_by: string | null;
@@ -156,6 +157,7 @@ export type Database = {
           total_minutes?: number | null;
           notes?: string | null;
           cookbook_id?: string | null;
+          page_number?: number | null;
           source_note?: string | null;
           source_type?: RecipeSourceType;
         };
@@ -171,6 +173,7 @@ export type Database = {
           total_minutes?: number | null;
           notes?: string | null;
           cookbook_id?: string | null;
+          page_number?: number | null;
           source_note?: string | null;
           source_type?: RecipeSourceType;
           deleted_at?: string | null; // "delete" = move to trash
@@ -314,6 +317,9 @@ export type Database = {
       personal_group_id: { Args: Record<string, never>; Returns: string };
       // null = email not registered; otherwise providers, e.g. ["email"], ["google"]
       login_methods: { Args: { p_email: string }; Returns: string[] | null };
+      // Saves a whole recipe in one transaction; returns its id.
+      // Shape of p_recipe: see lib/recipes/schema.ts (RecipeInput).
+      save_recipe: { Args: { p_recipe: Json }; Returns: string };
     };
     Enums: {
       content_language: ContentLanguage;

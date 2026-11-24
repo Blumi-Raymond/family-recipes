@@ -1,5 +1,6 @@
 // Shared UI building blocks in the site's design (docs/design.md).
 // Build new screens from these instead of styling from scratch.
+import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
 
 const focusRing =
@@ -8,29 +9,80 @@ const focusRing =
 // ---------------------------------------------------------------------
 // Buttons
 // ---------------------------------------------------------------------
-type ButtonProps = ComponentProps<"button"> & {
-  variant?: "primary" | "secondary";
+type ButtonVariant = "primary" | "secondary" | "danger";
+type ButtonSize = "md" | "sm";
+
+const buttonLook: Record<ButtonVariant, string> = {
+  primary: "bg-brand text-white hover:bg-brand-dark",
+  secondary: "border border-line bg-surface text-ink hover:bg-brand-tint",
+  danger: "border border-line bg-surface text-danger hover:bg-danger-tint",
 };
 
-export function Button({ variant = "primary", className = "", ...props }: ButtonProps) {
-  const look =
-    variant === "primary"
-      ? "bg-brand text-white hover:bg-brand-dark"
-      : "border border-line bg-surface text-ink hover:bg-brand-tint";
+// Shared by <Button> and <LinkButton>
+function buttonClass(variant: ButtonVariant, size: ButtonSize, block: boolean, extra: string) {
   return (
-    <button
-      className={
-        `flex h-12 w-full items-center justify-center gap-2.5 rounded-field px-5 text-[15px] font-semibold transition-colors ` +
-        `disabled:cursor-wait disabled:opacity-60 ${focusRing} ${look} ${className}`
-      }
-      {...props}
-    />
+    `inline-flex shrink-0 items-center justify-center gap-2.5 rounded-field font-semibold transition-colors ` +
+    `disabled:cursor-wait disabled:opacity-60 ${focusRing} ${buttonLook[variant]} ` +
+    (size === "md" ? "h-12 px-5 text-[15px] " : "h-10 px-4 text-sm ") +
+    (block ? "w-full " : "") +
+    extra
   );
+}
+
+type ButtonProps = ComponentProps<"button"> & {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  block?: boolean; // full width (forms). false = as wide as the text
+};
+
+export function Button({
+  variant = "primary",
+  size = "md",
+  block = true,
+  className = "",
+  type = "button",
+  ...props
+}: ButtonProps) {
+  return (
+    <button type={type} className={buttonClass(variant, size, block, className)} {...props} />
+  );
+}
+
+// A link that looks like a button (e.g. "New recipe", "Edit")
+export function LinkButton({
+  variant = "primary",
+  size = "sm",
+  block = false,
+  className = "",
+  ...props
+}: ComponentProps<typeof Link> & { variant?: ButtonVariant; size?: ButtonSize; block?: boolean }) {
+  return <Link className={buttonClass(variant, size, block, className)} {...props} />;
 }
 
 // ---------------------------------------------------------------------
 // Text field: label + input (+ optional hint)
 // ---------------------------------------------------------------------
+const inputLook =
+  "rounded-field border bg-surface px-3.5 text-[15px] text-ink placeholder:text-ink-faint " +
+  "transition-colors outline-none focus:border-brand focus:ring-1 focus:ring-brand " +
+  "disabled:bg-brand-tint disabled:text-ink-soft";
+
+function Label({ htmlFor, children }: { htmlFor?: string; children: ReactNode }) {
+  return (
+    <label htmlFor={htmlFor} className="text-[13px] font-medium text-ink">
+      {children}
+    </label>
+  );
+}
+
+function Hint({ id, children }: { id?: string; children: ReactNode }) {
+  return (
+    <p id={id} className="text-xs text-ink-faint">
+      {children}
+    </p>
+  );
+}
+
 type FieldProps = ComponentProps<"input"> & {
   label: string;
   hint?: string;
@@ -40,21 +92,170 @@ type FieldProps = ComponentProps<"input"> & {
 export function Field({ label, hint, invalid, id, className = "", ...props }: FieldProps) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-[13px] font-medium text-ink">
-        {label}
-      </label>
+      <Label htmlFor={id}>{label}</Label>
       <input
         id={id}
         aria-invalid={invalid || undefined}
-        className={
-          `h-12 rounded-field border bg-surface px-3.5 text-[15px] text-ink placeholder:text-ink-faint ` +
-          `transition-colors focus:border-brand focus:ring-1 focus:ring-brand outline-none ` +
-          `${invalid ? "border-danger" : "border-line"} ${className}`
-        }
+        aria-describedby={hint && id ? `${id}-hint` : undefined}
+        className={`h-12 ${inputLook} ${invalid ? "border-danger" : "border-line"} ${className}`}
         {...props}
       />
-      {hint && <p className="text-xs text-ink-faint">{hint}</p>}
+      {hint && <Hint id={id ? `${id}-hint` : undefined}>{hint}</Hint>}
     </div>
+  );
+}
+
+// Input without its own label, for rows in a list (ingredients, steps).
+// Always pass aria-label, and show a visible column title above the list.
+export function Input({
+  invalid,
+  className = "",
+  ...props
+}: ComponentProps<"input"> & { invalid?: boolean }) {
+  return (
+    <input
+      aria-invalid={invalid || undefined}
+      className={`h-11 min-w-0 ${inputLook} ${invalid ? "border-danger" : "border-line"} ${className}`}
+      {...props}
+    />
+  );
+}
+
+// Multi-line text: label + textarea (+ optional hint)
+export function TextArea({
+  label,
+  hint,
+  invalid,
+  id,
+  className = "",
+  rows = 3,
+  ...props
+}: ComponentProps<"textarea"> & { label?: string; hint?: string; invalid?: boolean }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      {label && <Label htmlFor={id}>{label}</Label>}
+      <textarea
+        id={id}
+        rows={rows}
+        aria-invalid={invalid || undefined}
+        className={`py-3 leading-relaxed ${inputLook} ${invalid ? "border-danger" : "border-line"} ${className}`}
+        {...props}
+      />
+      {hint && <Hint>{hint}</Hint>}
+    </div>
+  );
+}
+
+// Drop-down list: label + select
+export function Select({
+  label,
+  hint,
+  id,
+  className = "",
+  children,
+  ...props
+}: ComponentProps<"select"> & { label: string; hint?: string }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <select id={id} className={`h-12 border-line ${inputLook} ${className}`} {...props}>
+        {children}
+      </select>
+      {hint && <Hint>{hint}</Hint>}
+    </div>
+  );
+}
+
+// One choice out of a few, shown as side-by-side buttons
+// (e.g. meat / dairy / pareve). Works like radio buttons.
+export function ChoiceGroup<T extends string>({
+  legend,
+  name,
+  options,
+  value,
+  onChange,
+  invalid,
+  hint,
+}: {
+  legend: string;
+  name: string;
+  options: { value: T; label: string }[];
+  value: T | "";
+  onChange: (value: T) => void;
+  invalid?: boolean;
+  hint?: string;
+}) {
+  return (
+    <fieldset className="flex flex-col gap-1.5" aria-invalid={invalid || undefined}>
+      <legend className="mb-1.5 text-[13px] font-medium text-ink">{legend}</legend>
+      <div
+        className={`grid gap-1 rounded-field border p-1 ${invalid ? "border-danger" : "border-line"}`}
+        style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
+      >
+        {options.map((o) => (
+          <label
+            key={o.value}
+            className={
+              "flex h-10 cursor-pointer items-center justify-center rounded-[7px] px-2 text-[15px] transition-colors " +
+              "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/40 " +
+              (value === o.value
+                ? "bg-brand font-semibold text-white"
+                : "text-ink-soft hover:bg-brand-tint hover:text-ink")
+            }
+          >
+            <input
+              type="radio"
+              name={name}
+              value={o.value}
+              checked={value === o.value}
+              onChange={() => onChange(o.value)}
+              className="sr-only"
+            />
+            {o.label}
+          </label>
+        ))}
+      </div>
+      {hint && <Hint>{hint}</Hint>}
+    </fieldset>
+  );
+}
+
+// A small rounded label. With onClick it becomes an on/off toggle.
+export function Chip({
+  selected = false,
+  className = "",
+  children,
+  ...props
+}: ComponentProps<"button"> & { selected?: boolean }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      className={
+        `inline-flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-sm transition-colors ${focusRing} ` +
+        (selected
+          ? "border-brand bg-brand text-white"
+          : "border-line bg-surface text-ink-soft hover:bg-brand-tint hover:text-ink") +
+        ` ${className}`
+      }
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
+// Read-only label (e.g. a tag on a recipe page)
+export function Badge({ children, tone = "soft" }: { children: ReactNode; tone?: "soft" | "brand" }) {
+  return (
+    <span
+      className={
+        "inline-flex h-7 items-center rounded-full px-3 text-[13px] font-medium " +
+        (tone === "brand" ? "bg-brand text-white" : "bg-brand-tint text-brand-dark")
+      }
+    >
+      {children}
+    </span>
   );
 }
 
@@ -77,6 +278,56 @@ export function Alert({
     >
       {children}
     </div>
+  );
+}
+
+// Page title row: title (+ subtitle) on one side, actions on the other
+export function PageHeader({
+  title,
+  subtitle,
+  actions,
+}: {
+  title: ReactNode;
+  subtitle?: ReactNode;
+  actions?: ReactNode;
+}) {
+  return (
+    <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+      <div className="flex min-w-0 flex-col gap-2">
+        <h1 className="text-[34px] font-bold leading-tight tracking-tight">{title}</h1>
+        {subtitle && <p className="text-[15px] text-ink-soft">{subtitle}</p>}
+      </div>
+      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+    </div>
+  );
+}
+
+// Soft box shown when a list is empty
+export function EmptyState({
+  title,
+  text,
+  action,
+}: {
+  title: string;
+  text?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-start gap-3 rounded-2xl bg-brand-tint p-8">
+      <p className="text-[17px] font-semibold">{title}</p>
+      {text && <p className="max-w-md text-[15px] text-ink-soft">{text}</p>}
+      {action}
+    </div>
+  );
+}
+
+// A form section: small title + content, 28px apart from the next one
+export function FormSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="flex flex-col gap-[18px] border-t border-line pt-7 first:border-t-0 first:pt-0">
+      <h2 className="text-[17px] font-bold tracking-tight">{title}</h2>
+      {children}
+    </section>
   );
 }
 
