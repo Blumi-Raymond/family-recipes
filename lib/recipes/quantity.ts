@@ -88,7 +88,9 @@ function formatOne(n: number): string {
   const whole = Math.floor(n);
   const rest = n - whole;
   if (rest < 0.005) return String(whole);
-  const match = DISPLAY_FRACTIONS.find(([value]) => Math.abs(value - rest) < 0.01);
+  // Fractions are stored with 4 decimals (1/3 -> 0.3333), so a tight match is
+  // enough — and a typed 1.37 stays 1.37 instead of becoming 1⅜.
+  const match = DISPLAY_FRACTIONS.find(([value]) => Math.abs(value - rest) < 0.001);
   if (match) return whole ? `${whole}${match[1]}` : match[1];
   // Anything else: up to 2 decimals, no trailing zeros
   return String(Math.round(n * 100) / 100);

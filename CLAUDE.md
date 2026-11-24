@@ -14,7 +14,8 @@
 - Supabase via `@supabase/ssr`: `lib/supabase/server.ts` (server), `lib/supabase/client.ts` (browser).
 - Data access is per **group**: every user has a personal group; `cookbooks`, `source_pages`, `recipes` carry `group_id` (defaults to the personal group). Permissions live in RLS — never rely on the UI for security.
 - Schema changes = a new file in `supabase/migrations/` (the owner runs it in the SQL Editor) + update `lib/supabase/database.types.ts` by hand.
-- Before every push: `npx tsc --noEmit`, `npm run lint`, `npm run build`.
+- Before every push: `npx tsc --noEmit`, `npm run lint`, `npm test`, `npm run build`.
+- Logic that is easy to get wrong (amounts, form <-> saved data, scanning answers) gets tests in `tests/`.
 
 ## Design
 - Follow `docs/design.md` on every screen. Use the tokens in `app/globals.css` and the components in `components/ui.tsx` — no new colors or one-off styles.
