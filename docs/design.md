@@ -62,8 +62,10 @@ All in `components/ui.tsx` unless noted. Build screens from these.
 - Icons: thin outline (stroke 1.6–1.8), brand color, inline SVG.
 - Header on small phones (≤440px): "מתכון חדש" shrinks to "+" and "סריקה" to a camera icon (the text stays for screen
   readers). Checked at 320–1280px in both languages — re-check when adding a link.
-- "Continue where you stopped" (scan screen) = a `bg-brand-tint` box above the form; each scan is a white rounded row with
-  the unsaved recipe names, a short grey line (how many left · book · date), "להמשך" and "הסרה מהרשימה" (`<ConfirmButton>`).
+- Recipes waiting for review (scanned, not saved yet): their own page `/scan/waiting`. Each scan is a rounded row with a
+  small picture of the first page (3:4), the recipe names, a grey line (book · date), "לבדיקה" and "הסרה מהרשימה"
+  (`<ConfirmButton>`). The menu shows the number as a small brand pill after "סריקה"; the scan screen shows one button
+  ("3 מתכונים מחכים לאישור") in its title row — never a long list above the form.
 - Scan review screen: the form on the start side, the page photo (sticky, page tabs, zoom, open full size) on the end
   side from 1280px; below that the photo sits above the form.
 - Recipe page: from 1024px the recipe sits on the start side (right in Hebrew) and the photos on the end side, sticky

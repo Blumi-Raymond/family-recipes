@@ -242,14 +242,20 @@ const en: Dictionary = {
     notFromBook: "Not from a book",
     pageOf: "Page {n} of {total}",
     newScan: "New scan",
-    openTitle: "Continue where you stopped",
-    openText: "Scans with recipes that aren't saved yet.",
-    openLeftOne: "1 recipe left to save",
-    openLeftOther: "{n} recipes left to save",
-    openContinue: "Continue",
+    waitingOne: "1 recipe waiting for review",
+    waitingOther: "{n} recipes waiting for review",
     openDismiss: "Remove from the list",
-    openDismissQuestion: "Remove from the list? You can still reach the scan from a recipe saved from it.",
+    openDismissQuestion: "Remove from the list? The recipes from this scan that aren't saved yet won't be saved. Saved ones stay.",
     openDismissError: "Couldn't remove it. Please try again.",
+  },
+
+  waiting: {
+    title: "Waiting for review",
+    subtitle: "Recipes you scanned and haven't checked and saved yet. Come back to them whenever you like.",
+    emptyTitle: "Nothing waiting",
+    emptyText: "Everything you scanned is saved.",
+    review: "Review",
+    navCount: "{n} waiting for review",
   },
 
   // ---------------------------------------------------------------

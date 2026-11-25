@@ -4,23 +4,25 @@
 // is filled in inside <Suspense> (until then: the same links, none marked).
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 import { useI18n } from "@/lib/i18n/client";
 import { localePath } from "@/lib/i18n/config";
 
-export function MainNav() {
+// scanBadge: how many recipes wait for review, filled in by the server
+// (a small number after "Scan")
+export function MainNav({ scanBadge }: { scanBadge?: ReactNode }) {
   return (
-    <Suspense fallback={<NavLinks pathname={null} />}>
-      <CurrentNav />
+    <Suspense fallback={<NavLinks pathname={null} scanBadge={scanBadge} />}>
+      <CurrentNav scanBadge={scanBadge} />
     </Suspense>
   );
 }
 
-function CurrentNav() {
-  return <NavLinks pathname={usePathname()} />;
+function CurrentNav({ scanBadge }: { scanBadge?: ReactNode }) {
+  return <NavLinks pathname={usePathname()} scanBadge={scanBadge} />;
 }
 
-function NavLinks({ pathname }: { pathname: string | null }) {
+function NavLinks({ pathname, scanBadge }: { pathname: string | null; scanBadge?: ReactNode }) {
   const { locale, t } = useI18n();
 
   const home = localePath(locale);
@@ -76,6 +78,7 @@ function NavLinks({ pathname }: { pathname: string | null }) {
                   <circle cx="12" cy="13" r="3.5" />
                 </svg>
                 <span className="max-[440px]:sr-only">{item.label}</span>
+                {scanBadge}
               </>
             ) : (
               item.label

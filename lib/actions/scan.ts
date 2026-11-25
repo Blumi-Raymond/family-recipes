@@ -135,8 +135,9 @@ const pageIdList = z
   .max(MAX_SCAN_PAGES)
   .refine((ids) => new Set(ids).size === ids.length);
 
+// The whole site: the menu shows how many recipes are waiting for review
 function refreshScanScreens() {
-  revalidatePath("/[lang]/scan", "page");
+  revalidatePath("/[lang]", "layout");
 }
 
 // A new answer for these pages (replaces an earlier one). Checked again here.
@@ -181,7 +182,7 @@ export async function markScanRecipeSaved(draftId: string, index: number, recipe
   return { ok: true };
 }
 
-// "Remove from the list" (the answer stays; the scan's review screen still shows it)
+// "Remove from the list" (the answer stays in the database, but the scan is no longer waiting)
 export async function dismissScanDraft(draftId: string): Promise<{ ok: boolean }> {
   if (!isUuid(draftId)) return { ok: false };
   const supabase = await createClient();

@@ -1,5 +1,6 @@
 // Page photos of a scan and stored answers, for the scan screens.
 import "server-only";
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { signImageUrls } from "@/lib/images/server";
 import { detectLanguage } from "@/lib/i18n/detect";
@@ -94,12 +95,15 @@ export type OpenScan = {
   pagesParam: string; // for /scan/review?pages=
   unsavedTitles: { title: string; language: "he" | "en" }[];
   bookTitle: string | null;
+  thumbUrl: string | null; // small copy of the first page
   updatedAt: string;
 };
 
-// "Continue where you stopped": stored answers with recipes not saved yet
+// Scans waiting for review: stored answers with recipes not saved yet
 // (newest first). A recipe moved to the trash counts as not saved.
-export async function listOpenScans(max = 10): Promise<OpenScan[]> {
+// cache(): the menu (how many are waiting) and the page ask once per request.
+export const listOpenScans = cache(async (): Promise<OpenScan[]> => {
+  const max = 40;
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("scan_drafts")
@@ -128,7 +132,7 @@ export async function listOpenScans(max = 10): Promise<OpenScan[]> {
 
   // The cookbook: from the first page of each scan
   const firstPages = open.map((d) => d.row.page_ids[0]);
-  const pages = await supabase.from("source_pages").select("id, cookbook_id").in("id", firstPages);
+  const pages = await supabase.from("source_pages").select("id, cookbook_id, image_path").in("id", firstPages);
   if (pages.error) fail("listOpenScans.pages", pages.error);
   const bookIds = [...new Set(pages.data.map((p) => p.cookbook_id).filter((id): id is string => !!id))];
   const books = bookIds.length
@@ -136,6 +140,8 @@ export async function listOpenScans(max = 10): Promise<OpenScan[]> {
     : { data: [], error: null };
   if (books.error) fail("listOpenScans.books", books.error);
   const bookOfPage = new Map(pages.data.map((p) => [p.id, p.cookbook_id]));
+  const pathOfPage = new Map(pages.data.map((p) => [p.id, p.image_path]));
+  const thumbs = await signImageUrls(pages.data.map((p) => p.image_path), "thumb");
   const titleOfBook = new Map((books.data ?? []).map((b) => [b.id, b.title]));
 
   return open.map((d) => {
@@ -148,9 +154,16 @@ export async function listOpenScans(max = 10): Promise<OpenScan[]> {
         return { title, language: detectLanguage([title], "he") };
       }),
       bookTitle: bookId ? (titleOfBook.get(bookId) ?? null) : null,
+      thumbUrl: thumbs.get(pathOfPage.get(d.row.page_ids[0]) ?? "") ?? null,
       updatedAt: d.row.updated_at,
     };
   });
+});
+
+// How many recipes are waiting for review (for the menu)
+export async function countWaitingRecipes(): Promise<number> {
+  const scans = await listOpenScans();
+  return scans.reduce((n, s) => n + s.unsavedTitles.length, 0);
 }
 
 // Before migration 20261125100000_scan_drafts.sql runs, the table doesn't

@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { FormSkeleton } from "@/components/skeletons";
-import { PageHeader } from "@/components/ui";
+import { LinkButton, PageHeader } from "@/components/ui";
 import { getPersonalGroupId } from "@/lib/data/common";
 import { listCookbookOptions } from "@/lib/data/cookbooks";
+import { countWaitingRecipes } from "@/lib/data/scan";
+import { localePath, plural } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
-import { OpenScans } from "./open-scans";
 import { ScanForm } from "./scan-form";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -29,15 +30,31 @@ async function Scan({ searchParams }: PageProps<"/[lang]/scan">) {
   );
 }
 
+// "3 recipes waiting for review" -> the list (only when there are any)
+async function WaitingLink() {
+  const [{ locale, t }, count] = await Promise.all([getI18n(), countWaitingRecipes()]);
+  if (count === 0) return null;
+  return (
+    <LinkButton href={localePath(locale, "/scan/waiting")} variant="secondary">
+      {plural(count, t.scan.waitingOne, t.scan.waitingOther)}
+    </LinkButton>
+  );
+}
+
 export default async function ScanPage(props: PageProps<"/[lang]/scan">) {
   const { t } = await getI18n();
   return (
     <>
-      <PageHeader title={t.scan.title} subtitle={t.scan.subtitle} />
-      {/* Nothing shown while loading: the list is a shortcut, the form is the page */}
-      <Suspense fallback={null}>
-        <OpenScans />
-      </Suspense>
+      <PageHeader
+        title={t.scan.title}
+        subtitle={t.scan.subtitle}
+        actions={
+          // A shortcut, so nothing while loading (in the title row: nothing below moves)
+          <Suspense fallback={null}>
+            <WaitingLink />
+          </Suspense>
+        }
+      />
       <Suspense fallback={<FormSkeleton />}>
         <Scan {...props} />
       </Suspense>
