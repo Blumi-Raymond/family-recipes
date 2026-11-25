@@ -1,10 +1,18 @@
 "use client";
 // Add / edit a recipe. All of it is saved in one go (save_recipe in the database).
 // The rows logic (headings, empty rows, amounts) lives in lib/recipes/form-state.ts.
+//
+// Also the scan review's form (prop `scan`): starts from the AI's draft,
+// shows "worth checking" marks under the fields, warns before saving the same
+// recipe twice, and links the page photos to the recipe.
+// Layout follows the FORM's width (container queries, @xl / @2xl), not the
+// window's, because on the review screen it sits next to the page photo.
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
   useTransition,
@@ -17,6 +25,7 @@ import { PhotoPicker, type PickedPhoto } from "@/components/photo-picker";
 import {
   Alert,
   Button,
+  CheckNote,
   ChoiceGroup,
   Chip,
   Field,
@@ -28,6 +37,7 @@ import {
   TextArea,
 } from "@/components/ui";
 import { saveRecipe } from "@/lib/actions/recipes";
+import { findDuplicateRecipe, type Duplicate } from "@/lib/actions/scan";
 import type { RecipeDetails } from "@/lib/data/recipes";
 import type { Tag } from "@/lib/data/common";
 import { useLeaveAfterSave } from "@/lib/forms/use-leave-after-save";
@@ -46,7 +56,21 @@ import {
 } from "@/lib/recipes/form-state";
 import { MAX_PHOTOS, type KosherType } from "@/lib/recipes/schema";
 import { UNIT_SUGGESTIONS } from "@/lib/recipes/units";
+import { ingredientInputId, marksByPlace, reasonText, type MarkReason } from "@/lib/scan/review";
+import type { ScanReview } from "@/lib/scan/to-form";
 import type { FieldErrors, FormErrorKey } from "@/lib/validation";
+
+// A scanned draft (scan review screen)
+export type ScanDraft = {
+  form: RecipeFormState; // filled in from the AI's answer
+  review: ScanReview;
+  sourcePages: string[]; // page photo ids, in reading order
+  onSaved: (id: string) => void; // the review screen decides where to go
+  onBack: () => void; // "Back" instead of "Cancel"
+  onLeft?: () => void; // the screen was left after saving (hidden for "back")
+  onChange: (form: RecipeFormState) => void; // keeps her edits if she goes back and returns
+  edited: boolean; // reopened with her earlier edits (counts as unsaved changes)
+};
 
 type Props = {
   recipe: RecipeDetails | null; // null = new recipe
@@ -54,12 +78,16 @@ type Props = {
   books: { id: string; title: string }[];
   tags: Tag[];
   initialBookId?: string; // new recipe opened from a cookbook
+  scan?: ScanDraft;
 };
 
-export function RecipeForm({ recipe, groupId, books, tags, initialBookId }: Props) {
+const NO_MARKS = new Map<string, MarkReason[]>();
+
+export function RecipeForm({ recipe, groupId, books, tags, initialBookId, scan }: Props) {
   const { locale, t } = useI18n();
   const router = useRouter();
   const [form, setForm] = useState<RecipeFormState>(() => {
+    if (scan) return scan.form;
     const state = initialFormState(recipe, locale);
     if (!recipe && initialBookId && books.some((b) => b.id === initialBookId)) {
       state.bookId = initialBookId;
@@ -70,17 +98,46 @@ export function RecipeForm({ recipe, groupId, books, tags, initialBookId }: Prop
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<FormErrorKey | null>(null);
   const [pending, startTransition] = useTransition();
-  const [dirty, setDirty] = useState(false);
+  const [dirty, setDirty] = useState(scan?.edited ?? false);
   const formRef = useRef<HTMLFormElement>(null);
   // After saving: locked until we've moved on. Then (hidden, kept for the
   // "back" button) a NEW recipe's form starts fresh, so "back" + "save" can't
   // create the same recipe twice. Editing keeps its values: saving again
   // only updates the same recipe.
   const { leaving, startLeaving } = useLeaveAfterSave(() => {
+    if (scan) {
+      scan.onLeft?.();
+      return;
+    }
     if (!recipe) setForm((f) => ({ ...initialFormState(null, locale), bookId: f.bookId }));
     setErrors({});
     setFormError(null);
   });
+  // Scan: the same recipe may already be saved (same title and source).
+  // Shown once; "Save anyway" saves it regardless.
+  const [duplicate, setDuplicate] = useState<Duplicate | null>(null);
+  const allowDuplicate = useRef(false);
+
+  // "Worth checking" marks under the fields (scan only)
+  const marks = useMemo(() => (scan ? marksByPlace(scan.review.checks) : NO_MARKS), [scan]);
+  const marksFor = (place: string) => {
+    const list = marks.get(place);
+    if (!list) return null;
+    return list.map((reason, i) => (
+      <CheckNote key={i}>{reasonText(reason, t.scanReview.reasons)}</CheckNote>
+    ));
+  };
+  const rowNotes = (list: "ingredient" | "step", key: string) => {
+    const printed = scan?.review.handwritten[key];
+    const notes = marksFor(`${list}.${key}`);
+    if (!printed && !notes) return null;
+    return (
+      <>
+        {printed && <CheckNote tone="info">{fmt(t.scanReview.handwritten, { text: printed })}</CheckNote>}
+        {notes}
+      </>
+    );
+  };
 
   // Content fields follow the RECIPE's language (detected from the text),
   // not the site's
@@ -90,12 +147,23 @@ export function RecipeForm({ recipe, groupId, books, tags, initialBookId }: Prop
   const update = (patch: Partial<RecipeFormState>) => {
     setForm((f) => ({ ...f, ...patch }));
     setDirty(true);
+    if (duplicate) {
+      // Changed after the warning: check again on the next save
+      setDuplicate(null);
+      allowDuplicate.current = false;
+    }
   };
   const setPhotos: Dispatch<SetStateAction<PickedPhoto[]>> = (value) => {
     setForm((f) => ({ ...f, photos: typeof value === "function" ? value(f.photos) : value }));
     setDirty(true);
   };
   const err = (key: string) => (errors[key] ? t.formErrors[errors[key]] : undefined);
+
+  // Scan: the review screen keeps the latest version (summary, going back)
+  const onScanChange = scan?.onChange;
+  useEffect(() => {
+    onScanChange?.(form);
+  }, [form, onScanChange]);
 
   // Leaving with unsaved changes: the browser asks "leave site?"
   useEffect(() => {
@@ -129,11 +197,30 @@ export function RecipeForm({ recipe, groupId, books, tags, initialBookId }: Prop
     }
     setErrors({});
     setFormError(null);
+    const input = scan ? { ...result.input, source_pages: scan.sourcePages } : result.input;
 
     startTransition(async () => {
+      if (scan && !allowDuplicate.current) {
+        let found: Duplicate | null = null;
+        try {
+          found = await findDuplicateRecipe({
+            title: input.title,
+            cookbook_id: input.cookbook_id,
+            page_number: input.page_number,
+            source_pages: scan.sourcePages,
+          });
+        } catch {
+          // The check couldn't run (connection): saving below reports that
+        }
+        if (found) {
+          setDuplicate(found);
+          return;
+        }
+      }
+
       let saved;
       try {
-        saved = await saveRecipe(result.input);
+        saved = await saveRecipe(input);
       } catch {
         // No connection / server didn't answer: keep everything she typed
         setFormError("generic");
@@ -141,8 +228,11 @@ export function RecipeForm({ recipe, groupId, books, tags, initialBookId }: Prop
       }
       if (saved.ok) {
         setDirty(false);
-        startLeaving(); // locked until the recipe page shows
-        router.push(localePath(locale, `/recipes/${saved.id}`));
+        setDuplicate(null);
+        allowDuplicate.current = false;
+        startLeaving(); // locked until the next screen shows
+        if (scan) scan.onSaved(saved.id);
+        else router.push(localePath(locale, `/recipes/${saved.id}`));
       } else {
         setFormError(saved.error);
         if (saved.fieldErrors) setErrors(saved.fieldErrors);
@@ -151,12 +241,22 @@ export function RecipeForm({ recipe, groupId, books, tags, initialBookId }: Prop
   }
 
   const cancelHref = recipe ? localePath(locale, `/recipes/${recipe.id}`) : localePath(locale);
+  const kosherReason = scan?.review.kosherReason;
 
   return (
-    <form ref={formRef} onSubmit={onSubmit} noValidate className="flex flex-col gap-7">
+    <form ref={formRef} onSubmit={onSubmit} noValidate className="@container flex flex-col gap-7">
       {/* ---------------- Details ---------------- */}
       <FormSection title={t.recipeForm.sectionDetails}>
+        <Marked notes={
+          <>
+            {kosherReason && (
+              <CheckNote tone="info">{fmt(t.scanReview.kosherReason, { reason: kosherReason })}</CheckNote>
+            )}
+            {marksFor("kosher_type")}
+          </>
+        }>
         <ChoiceGroup
+          id="kosher"
           legend={t.kosher.question}
           name="kosher"
           value={form.kosher}
@@ -168,16 +268,19 @@ export function RecipeForm({ recipe, groupId, books, tags, initialBookId }: Prop
             { value: "pareve", label: t.kosher.pareve },
           ]}
         />
-        <Field
-          id="title"
-          label={t.recipeForm.title}
-          value={form.title}
-          onChange={(e) => update({ title: e.target.value })}
-          error={err("title")}
-          dir="auto"
-          maxLength={200}
-          required
-        />
+        </Marked>
+        <Marked notes={marksFor("title")}>
+          <Field
+            id="title"
+            label={t.recipeForm.title}
+            value={form.title}
+            onChange={(e) => update({ title: e.target.value })}
+            error={err("title")}
+            dir="auto"
+            maxLength={200}
+            required
+          />
+        </Marked>
         <TextArea
           id="description"
           label={t.recipeForm.description}
@@ -192,7 +295,7 @@ export function RecipeForm({ recipe, groupId, books, tags, initialBookId }: Prop
 
       {/* ---------------- Source ---------------- */}
       <FormSection title={t.recipeForm.sectionSource}>
-        <div className="grid gap-[18px] sm:grid-cols-[1fr_8rem]">
+        <div className="grid gap-[18px] @xl:grid-cols-[1fr_8rem]">
           <Select
             id="book"
             label={t.recipeForm.book}
@@ -219,6 +322,7 @@ export function RecipeForm({ recipe, groupId, books, tags, initialBookId }: Prop
             />
           ) : null}
         </div>
+        {marksFor("page_number")}
         {!form.bookId && (
           <Field
             id="sourceNote"
@@ -235,23 +339,33 @@ export function RecipeForm({ recipe, groupId, books, tags, initialBookId }: Prop
 
       {/* ---------------- Amount and time ---------------- */}
       <FormSection title={t.recipeForm.sectionAmounts}>
-        <div className="grid gap-[18px] sm:grid-cols-2">
-          <Field
-            id="yield"
-            label={t.recipeForm.yield}
-            hint={t.recipeForm.yieldHint}
-            value={form.yieldText}
-            onChange={(e) => update({ yieldText: e.target.value })}
-            error={err("yield_text")}
-            dir={dir}
-            lang={lang}
-          />
-          <NumberField id="servings" label={t.recipeForm.servings} value={form.servings} error={err("servings")} onChange={(servings) => update({ servings })} />
+        <div className="grid gap-[18px] @xl:grid-cols-2">
+          <Marked notes={marksFor("yield_text")}>
+            <Field
+              id="yield"
+              label={t.recipeForm.yield}
+              hint={t.recipeForm.yieldHint}
+              value={form.yieldText}
+              onChange={(e) => update({ yieldText: e.target.value })}
+              error={err("yield_text")}
+              dir={dir}
+              lang={lang}
+            />
+          </Marked>
+          <Marked notes={marksFor("servings")}>
+            <NumberField id="servings" label={t.recipeForm.servings} value={form.servings} error={err("servings")} onChange={(servings) => update({ servings })} />
+          </Marked>
         </div>
-        <div className="grid gap-[18px] sm:grid-cols-3">
-          <NumberField id="prep" label={t.recipeForm.prep} value={form.prep} error={err("prep_minutes")} onChange={(prep) => update({ prep })} />
-          <NumberField id="cook" label={t.recipeForm.cook} value={form.cook} error={err("cook_minutes")} onChange={(cook) => update({ cook })} />
-          <NumberField id="total" label={t.recipeForm.total} value={form.total} error={err("total_minutes")} onChange={(total) => update({ total })} />
+        <div className="grid gap-[18px] @xl:grid-cols-3">
+          <Marked notes={marksFor("prep_minutes")}>
+            <NumberField id="prep" label={t.recipeForm.prep} value={form.prep} error={err("prep_minutes")} onChange={(prep) => update({ prep })} />
+          </Marked>
+          <Marked notes={marksFor("cook_minutes")}>
+            <NumberField id="cook" label={t.recipeForm.cook} value={form.cook} error={err("cook_minutes")} onChange={(cook) => update({ cook })} />
+          </Marked>
+          <Marked notes={marksFor("total_minutes")}>
+            <NumberField id="total" label={t.recipeForm.total} value={form.total} error={err("total_minutes")} onChange={(total) => update({ total })} />
+          </Marked>
         </div>
       </FormSection>
 
@@ -263,6 +377,7 @@ export function RecipeForm({ recipe, groupId, books, tags, initialBookId }: Prop
           errors={errors}
           dir={dir}
           lang={lang}
+          rowNotes={(key) => rowNotes("ingredient", key)}
         />
         {err("ingredients") && <FieldError>{err("ingredients")}</FieldError>}
       </FormSection>
@@ -275,31 +390,38 @@ export function RecipeForm({ recipe, groupId, books, tags, initialBookId }: Prop
           errors={errors}
           dir={dir}
           lang={lang}
+          rowNotes={(key) => rowNotes("step", key)}
         />
         {err("steps") && <FieldError>{err("steps")}</FieldError>}
       </FormSection>
 
       {/* ---------------- Notes ---------------- */}
       <FormSection title={t.recipeForm.sectionNotes}>
-        <TextArea
-          id="notes"
-          label={t.recipeForm.notes}
-          value={form.notes}
-          onChange={(e) => update({ notes: e.target.value })}
-          error={err("notes")}
-          dir={dir}
-          lang={lang}
-          rows={3}
-        />
+        <Marked notes={marksFor("notes")}>
+          <TextArea
+            id="notes"
+            label={t.recipeForm.notes}
+            value={form.notes}
+            onChange={(e) => update({ notes: e.target.value })}
+            error={err("notes")}
+            dir={dir}
+            lang={lang}
+            rows={3}
+          />
+        </Marked>
       </FormSection>
 
       {/* ---------------- Tags ---------------- */}
       <FormSection title={t.recipeForm.sectionTags}>
-        <TagPicker
-          tags={tags}
-          selected={form.tagIds}
-          onChange={(tagIds) => update({ tagIds })}
-        />
+        {/* id: the scan summary can move here (tabIndex -1: focusable by script only) */}
+        <div id="tags" tabIndex={-1} className="flex flex-col gap-3 rounded-field outline-none">
+          <TagPicker
+            tags={tags}
+            selected={form.tagIds}
+            onChange={(tagIds) => update({ tagIds })}
+          />
+          {marksFor("tags")}
+        </div>
       </FormSection>
 
       {/* ---------------- Photos ---------------- */}
@@ -319,14 +441,45 @@ export function RecipeForm({ recipe, groupId, books, tags, initialBookId }: Prop
       {/* ---------------- Save ---------------- */}
       <div className="sticky bottom-0 -mx-6 flex flex-col gap-3 border-t border-line bg-surface/95 px-6 py-4 backdrop-blur">
         {formError && <Alert>{t.formErrors[formError]}</Alert>}
+        {duplicate && (
+          <div role="alert" className="flex flex-col items-start gap-2 rounded-field bg-notice-tint px-4 py-3 text-sm leading-relaxed text-notice">
+            <p>{fmt(t.scanReview.duplicate, { title: duplicate.title })}</p>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <Link
+                href={localePath(locale, `/recipes/${duplicate.id}`)}
+                target="_blank"
+                className="font-medium underline underline-offset-4"
+              >
+                {t.scanReview.duplicateView}
+              </Link>
+              <button
+                type="button"
+                disabled={pending || leaving}
+                onClick={() => {
+                  allowDuplicate.current = true;
+                  formRef.current?.requestSubmit();
+                }}
+                className="font-semibold underline underline-offset-4 disabled:opacity-60"
+              >
+                {t.scanReview.duplicateSave}
+              </button>
+            </div>
+          </div>
+        )}
         {uploading && <p className="text-sm text-ink-soft">{t.images.waitForUpload}</p>}
         <div className="flex flex-wrap gap-2">
           <Button type="submit" block={false} disabled={pending || leaving || uploading}>
             {pending || leaving ? t.common.saving : t.recipeForm.save}
           </Button>
-          <LinkButton href={cancelHref} variant="secondary" size="md">
-            {t.common.cancel}
-          </LinkButton>
+          {scan ? (
+            <Button variant="secondary" block={false} onClick={scan.onBack} disabled={pending || leaving}>
+              {t.scanReview.back}
+            </Button>
+          ) : (
+            <LinkButton href={cancelHref} variant="secondary" size="md">
+              {t.common.cancel}
+            </LinkButton>
+          )}
         </div>
       </div>
     </form>
@@ -336,6 +489,17 @@ export function RecipeForm({ recipe, groupId, books, tags, initialBookId }: Prop
 // ---------------------------------------------------------------------
 // Small parts
 // ---------------------------------------------------------------------
+
+// A field with "worth checking" notes under it (scan review)
+function Marked({ notes, children }: { notes: ReactNode; children: ReactNode }) {
+  if (!notes) return children;
+  return (
+    <div className="flex flex-col gap-1.5">
+      {children}
+      {notes}
+    </div>
+  );
+}
 
 function NumberField({
   id,
@@ -436,12 +600,14 @@ function IngredientList({
   errors,
   dir,
   lang,
+  rowNotes,
 }: {
   rows: IngredientRow[];
   setRows: (rows: IngredientRow[]) => void;
   errors: FieldErrors;
   dir: "rtl" | "ltr";
   lang: "he" | "en";
+  rowNotes: (key: string) => ReactNode;
 }) {
   const { t } = useI18n();
   const unitsId = useId();
@@ -454,7 +620,7 @@ function IngredientList({
   const add = (kind: "item" | "heading") => {
     const key = newKey();
     setRows([...rows, kind === "item" ? emptyIngredient(key) : { key, kind: "heading", text: "" }]);
-    focusLater(kind === "item" ? `ing-${key}-quantity` : `ing-${key}-heading`);
+    focusLater(kind === "item" ? ingredientInputId(key, "quantity") : `ing-${key}-heading`);
   };
   const error = (key: string, field: string) => {
     const e = errors[`ingredient.${key}.${field}`];
@@ -472,7 +638,7 @@ function IngredientList({
       {/* Column titles (wide screens). On phones each field shows its name inside. */}
       <div
         aria-hidden="true"
-        className="hidden gap-2 text-[13px] font-medium text-ink sm:grid sm:grid-cols-[5.5rem_6.5rem_minmax(0,1fr)_9rem_5.5rem_7rem]"
+        className="hidden gap-2 text-[13px] font-medium text-ink @2xl:grid @2xl:grid-cols-[5.5rem_6.5rem_minmax(0,1fr)_9rem_5.5rem_7rem]"
       >
         <span>{t.recipeForm.quantity}</span>
         <span>{t.recipeForm.unit}</span>
@@ -482,7 +648,7 @@ function IngredientList({
         <span />
       </div>
 
-      <ul className="flex flex-col gap-3 sm:gap-2">
+      <ul className="flex flex-col gap-3 @2xl:gap-2">
         {rows.map((row, index) => {
           const actions = (
             <RowActions
@@ -512,10 +678,10 @@ function IngredientList({
           const qtyError = error(row.key, "quantity");
           const nameError = error(row.key, "name");
           return (
-            <li key={row.key} className="flex flex-col gap-1 border-b border-line pb-3 sm:border-0 sm:pb-0">
-              <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-2 sm:grid-cols-[5.5rem_6.5rem_minmax(0,1fr)_9rem_5.5rem_7rem] sm:items-center">
+            <li key={row.key} className="flex flex-col gap-1 border-b border-line pb-3 @2xl:border-0 @2xl:pb-0">
+              <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-2 @2xl:grid-cols-[5.5rem_6.5rem_minmax(0,1fr)_9rem_5.5rem_7rem] @2xl:items-center">
                 <Input
-                  id={`ing-${row.key}-quantity`}
+                  id={ingredientInputId(row.key, "quantity")}
                   aria-label={t.recipeForm.quantity}
                   placeholder={t.recipeForm.quantity}
                   value={row.quantity}
@@ -533,19 +699,20 @@ function IngredientList({
                   list={unitsId}
                 />
                 <Input
+                  id={ingredientInputId(row.key, "name")}
                   aria-label={t.recipeForm.ingredient}
                   placeholder={t.recipeForm.ingredient}
                   value={row.name}
                   onChange={(e) => change(row.key, { name: e.target.value })}
                   invalid={Boolean(nameError)}
-                  className="col-span-2 sm:col-span-1"
+                  className="col-span-2 @2xl:col-span-1"
                 />
                 <Input
                   aria-label={t.recipeForm.note}
                   placeholder={t.recipeForm.notePlaceholder}
                   value={row.note}
                   onChange={(e) => change(row.key, { note: e.target.value })}
-                  className="col-span-2 sm:col-span-1"
+                  className="col-span-2 @2xl:col-span-1"
                 />
                 <label className="flex h-11 items-center gap-2 text-sm text-ink-soft">
                   <input
@@ -554,11 +721,12 @@ function IngredientList({
                     onChange={(e) => change(row.key, { optional: e.target.checked })}
                     className="size-4 accent-brand"
                   />
-                  <span className="sm:sr-only">{t.recipeForm.optional}</span>
+                  <span className="@2xl:sr-only">{t.recipeForm.optional}</span>
                 </label>
                 <div className="justify-self-end">{actions}</div>
               </div>
               {(qtyError || nameError) && <FieldError>{qtyError ?? nameError}</FieldError>}
+              {rowNotes(row.key)}
             </li>
           );
         })}
@@ -585,12 +753,14 @@ function StepList({
   errors,
   dir,
   lang,
+  rowNotes,
 }: {
   rows: StepRow[];
   setRows: (rows: StepRow[]) => void;
   errors: FieldErrors;
   dir: "rtl" | "ltr";
   lang: "he" | "en";
+  rowNotes: (key: string) => ReactNode;
 }) {
   const { t } = useI18n();
   const focusLater = useFocusNewRow();
@@ -654,6 +824,7 @@ function StepList({
                   error={error ? t.formErrors[error] : undefined}
                   rows={2}
                 />
+                {rowNotes(row.key)}
               </div>
               {actions}
             </li>

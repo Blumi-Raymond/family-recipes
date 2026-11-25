@@ -56,12 +56,20 @@ async function BookList() {
               </span>
             </div>
           </Link>
-          <Link
-            href={localePath(locale, `/books/${book.id}/edit`)}
-            className="self-start text-sm font-medium text-brand underline-offset-4 hover:underline"
-          >
-            {t.common.edit}
-          </Link>
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
+            <Link
+              href={`${localePath(locale, "/scan")}?book=${book.id}`}
+              className="text-sm font-medium text-brand underline-offset-4 hover:underline"
+            >
+              {t.books.scan}
+            </Link>
+            <Link
+              href={localePath(locale, `/books/${book.id}/edit`)}
+              className="text-sm font-medium text-brand underline-offset-4 hover:underline"
+            >
+              {t.common.edit}
+            </Link>
+          </div>
         </li>
       ))}
     </ul>

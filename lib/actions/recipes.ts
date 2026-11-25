@@ -26,6 +26,20 @@ export async function saveRecipe(input: RecipeInput): Promise<ActionResult> {
     return { ok: false, error: error.code === "P0002" ? "notFound" : "generic" };
   }
 
+  // Scanned recipe: the printed page number belongs to the first page photo
+  // (where the recipe starts). Only filled when still empty, so a number
+  // set before is never overwritten. Not part of the recipe — a failure
+  // here is logged and the save still counts.
+  const pages = parsed.data.source_pages;
+  if (pages?.length && parsed.data.page_number !== null) {
+    const { error: pageError } = await supabase
+      .from("source_pages")
+      .update({ page_number: parsed.data.page_number })
+      .eq("id", pages[0])
+      .is("page_number", null);
+    if (pageError) console.error("save_recipe page number error:", pageError.code, pageError.message);
+  }
+
   refreshAll();
   return { ok: true, id: data };
 }

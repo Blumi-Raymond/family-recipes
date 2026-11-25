@@ -21,6 +21,7 @@ Building blocks: `components/ui.tsx` (Button, Field, Alert, Divider, Logo).
 | `line` | #DCE3D6 | borders, dividers |
 | `surface` | #FFFFFF | page background |
 | `danger` / `danger-tint` | #A3302A / #FBEDEC | errors |
+| `notice` / `notice-tint` | #845511 / #FBF3E4 | "worth checking" marks on a scanned draft — something to look at, not an error |
 
 Do not add new colors without updating this table and `globals.css`.
 
@@ -33,7 +34,10 @@ Do not add new colors without updating this table and `globals.css`.
 - Inputs and buttons: 48px high, radius 10px (`rounded-field`).
 - Cards / boxes: radius 16px (`rounded-2xl`), `bg-brand-tint` or white with `border-line`.
 - Forms: max width ~380px, 18px between fields, 28px between sections.
-- Page content: `max-w-5xl` with 24px side padding.
+- Page content: `max-w-5xl` with 24px side padding. A screen that needs more room (the scan review: form + page photo
+  side by side) puts `data-wide` on an element, and the frame widens to `max-w-7xl` (`app/[lang]/(app)/layout.tsx`, CSS `:has`).
+- The recipe form follows its **own** width, not the window's (container queries: `@container` on the form,
+  `@xl:` / `@2xl:` inside), so it also works in the narrower column next to a photo.
 
 ## Components
 All in `components/ui.tsx` unless noted. Build screens from these.
@@ -50,9 +54,16 @@ All in `components/ui.tsx` unless noted. Build screens from these.
 - Images = `<Photo>` (`components/photo.tsx`, soft placeholder when missing); uploading = `<PhotoPicker>`.
 - Recipe page photos for scanning (1–4, in reading order, high resolution) = `<PagePicker>` (`components/page-picker.tsx`):
   portrait tiles (3:4) numbered "עמוד 1", with text actions להקדים / לדחות / הסרה.
+- "Worth checking" under a field (a scanned draft) = `<CheckNote>` — amber `notice` color, outline "!" icon. Not an
+  error (errors stay red). `tone="info"` = a neutral note in `ink-soft` (e.g. "why dairy", "corrected by hand").
+  A list of what to check = a `bg-notice-tint` box at the top; each line moves to its field.
 - "Are you sure?" = `<ConfirmButton>` (`components/confirm-button.tsx`) — in place, no browser pop-ups; focus starts on "No".
 - Loading = soft `bg-brand-tint` shapes with `animate-pulse` (`components/skeletons.tsx`).
 - Icons: thin outline (stroke 1.6–1.8), brand color, inline SVG.
+- Header on small phones (≤440px): "מתכון חדש" shrinks to "+" and "סריקה" to a camera icon (the text stays for screen
+  readers). Checked at 320–1280px in both languages — re-check when adding a link.
+- Scan review screen: the form on the start side, the page photo (sticky, page tabs, zoom, open full size) on the end
+  side from 1280px; below that the photo sits above the form.
 - Text uses feminine Hebrew forms (the users are women in the family), e.g. "התחברי".
 
 ## Two languages

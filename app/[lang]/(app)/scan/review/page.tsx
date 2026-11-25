@@ -1,15 +1,18 @@
-// Review a scan: the page photos, in order.
-// Stage C adds the filled-in form next to them (see docs/stage-2-scan-plan.md).
+// Review a scan: the free path (copy the instructions, paste the answer),
+// then the filled-in recipe form next to the page photo. See scan-review.tsx
+// and docs/stage-2-scan-plan.md.
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { FormSkeleton } from "@/components/skeletons";
-import { Photo } from "@/components/photo";
 import { LinkButton, PageHeader } from "@/components/ui";
+import { getPersonalGroupId, getTags } from "@/lib/data/common";
+import { listCookbookOptions } from "@/lib/data/cookbooks";
 import { getScanPages } from "@/lib/data/scan";
-import { fmt, localePath } from "@/lib/i18n/config";
+import { localePath } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
 import { parsePageIds } from "@/lib/scan/pages";
+import { ScanReview } from "./scan-review";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getI18n();
@@ -18,35 +21,26 @@ export async function generateMetadata(): Promise<Metadata> {
 
 // ?pages=<id>,<id> — the page rows created by the scan screen
 async function Review({ searchParams }: PageProps<"/[lang]/scan/review">) {
-  const [{ pages: param }, { t }] = await Promise.all([searchParams, getI18n()]);
+  const { pages: param } = await searchParams;
   const ids = parsePageIds(param);
   if (!ids) notFound();
-  const scan = await getScanPages(ids);
+  const [scan, groupId, books, tags] = await Promise.all([
+    getScanPages(ids),
+    getPersonalGroupId(),
+    listCookbookOptions(),
+    getTags(),
+  ]);
   if (!scan) notFound();
 
-  const total = scan.pages.length;
   return (
-    <div className="flex flex-col gap-6">
-      <p className="text-[15px] text-ink-soft">
-        {scan.cookbook ? fmt(t.scan.fromBook, { book: scan.cookbook.title }) : t.scan.notFromBook}
-      </p>
-      <ol className="grid gap-4 sm:grid-cols-2">
-        {scan.pages.map((page, i) => {
-          const name = fmt(t.scan.pageOf, { n: i + 1, total });
-          return (
-            <li key={page.id} className="flex flex-col gap-2">
-              <span className="text-[13px] font-medium text-ink">{name}</span>
-              <Photo
-                src={page.url}
-                alt={name}
-                eager={i === 0}
-                className="min-h-40 w-full rounded-2xl border border-line"
-              />
-            </li>
-          );
-        })}
-      </ol>
-    </div>
+    <ScanReview
+      pageIds={ids}
+      pages={scan.pages.map((p) => ({ id: p.id, url: p.url }))}
+      cookbook={scan.cookbook}
+      groupId={groupId}
+      books={books}
+      tags={tags}
+    />
   );
 }
 

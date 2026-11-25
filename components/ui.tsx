@@ -194,6 +194,7 @@ export function Select({
 // One choice out of a few, shown as side-by-side buttons
 // (e.g. meat / dairy / pareve). Works like radio buttons.
 export function ChoiceGroup<T extends string>({
+  id,
   legend,
   name,
   options,
@@ -202,6 +203,7 @@ export function ChoiceGroup<T extends string>({
   hint,
   error,
 }: {
+  id?: string;
   legend: string;
   name: string;
   options: { value: T; label: string }[];
@@ -212,7 +214,7 @@ export function ChoiceGroup<T extends string>({
 }) {
   const invalid = Boolean(error);
   return (
-    <fieldset className="flex flex-col gap-1.5" aria-invalid={invalid || undefined}>
+    <fieldset id={id} className="flex flex-col gap-1.5" aria-invalid={invalid || undefined}>
       <legend className="mb-1.5 text-[13px] font-medium text-ink">{legend}</legend>
       <div
         className={`grid gap-1 rounded-field border p-1 ${invalid ? "border-danger" : "border-line"}`}
@@ -304,6 +306,43 @@ export function Alert({
     >
       {children}
     </div>
+  );
+}
+
+// A "worth checking" mark under a field (scanned draft): something to look
+// at against the page photo — not an error. tone="info" for a neutral note
+// (e.g. why meat/dairy/pareve was suggested).
+export function CheckNote({
+  id,
+  tone = "check",
+  children,
+}: {
+  id?: string;
+  tone?: "check" | "info";
+  children: ReactNode;
+}) {
+  return (
+    <p
+      id={id}
+      className={`flex items-start gap-1.5 text-[13px] leading-snug ${tone === "check" ? "text-notice" : "text-ink-soft"}`}
+    >
+      <svg
+        width="15"
+        height="15"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+        className="mt-px shrink-0"
+      >
+        <circle cx="12" cy="12" r="9" />
+        {tone === "check" ? <path d="M12 7.5v5.5M12 16.5h.01" /> : <path d="M12 11v5.5M12 7.5h.01" />}
+      </svg>
+      <span>{children}</span>
+    </p>
   );
 }
 

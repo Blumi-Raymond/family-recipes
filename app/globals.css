@@ -16,6 +16,8 @@
   --color-surface: #ffffff; /* page background */
   --color-danger: #a3302a; /* error text */
   --color-danger-tint: #fbedec; /* error background */
+  --color-notice: #845511; /* "worth checking" text (scan review) — not an error */
+  --color-notice-tint: #fbf3e4; /* "worth checking" background */
 
   --font-sans: var(--font-heebo), system-ui, sans-serif;
 
