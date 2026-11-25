@@ -31,6 +31,7 @@ const he = {
     edit: "עריכה",
     back: "חזרה",
     genericError: "משהו השתבש. כדאי לנסות שוב בעוד רגע.",
+    close: "סגירה",
   },
 
 
@@ -220,7 +221,15 @@ const he = {
     moveToTrash: "העברה לסל",
     trashConfirm: "להעביר את המתכון לסל המחזור?",
     trashNote: "אפשר לשחזר אותו מהסל במשך 30 יום.",
-    scanPages: "לעמודי הסריקה",
+    photos: "תמונות",
+    bookPageOne: "העמוד המקורי",
+    bookPage: "העמוד המקורי, {n}",
+    enlarge: "הגדלה",
+    previousPhoto: "התמונה הקודמת",
+    nextPhoto: "התמונה הבאה",
+    photoOf: "{n} מתוך {total}",
+    amount: "כמות",
+    ingredientsCount: "{n} מרכיבים",
   },
 
   // ---------------------------------------------------------------
@@ -300,6 +309,9 @@ const he = {
     saved: "נשמר",
     viewSaved: "לצפייה",
     savedNotice: "המתכון נשמר.",
+    allSaved: "כל המתכונים מהעמודים האלה נשמרו",
+    leftTitleOne: "נשאר מתכון אחד לבדיקה",
+    leftTitle: "נשארו {n} מתכונים לבדיקה",
     ingredientsOne: "מרכיב אחד",
     ingredientsOther: "{n} מרכיבים",
     pageNumber: "עמ׳ {n}",

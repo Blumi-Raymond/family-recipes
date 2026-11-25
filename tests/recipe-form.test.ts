@@ -63,7 +63,7 @@ test("loading and saving again keeps headings (including back to 'no heading')",
     notes: null, cookbook_id: null, page_number: null, source_note: null, book: null,
     ingredients: [ing("a", null), ing("b", "Dough"), ing("c", "Dough"), ing("d", null), ing("e", "Top")],
     steps: [{ section: "S1", instruction: "x" }, { section: null, instruction: "y" }],
-    tagIds: [], photos: [], sourcePageIds: [],
+    tagIds: [], photos: [], sourcePageIds: [], sourcePages: [],
   };
   const r = formToInput(initialFormState(recipe, "he"));
   assert.ok(r.ok);

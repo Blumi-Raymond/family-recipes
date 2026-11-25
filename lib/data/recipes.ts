@@ -129,6 +129,8 @@ export type RecipeDetails = {
   tagIds: string[];
   photos: { path: string; is_cover: boolean; url: string | null; thumbUrl: string | null }[];
   sourcePageIds: string[]; // page photos it was scanned from, in reading order ([] = typed by hand)
+  // The same pages with image links (shown at the end of the photo gallery: the original page)
+  sourcePages: { id: string; url: string | null; thumbUrl: string | null }[];
 };
 
 // null = not found, in the trash, or not hers.
@@ -165,20 +167,26 @@ export const getRecipe = cache(async (id: string): Promise<RecipeDetails | null>
   const row = recipe.data;
   if (!row) return null;
 
-  let book: RecipeDetails["book"] = null;
-  if (row.cookbook_id) {
-    const { data, error } = await supabase
-      .from("cookbooks")
-      .select("id, title")
-      .eq("id", row.cookbook_id)
-      .maybeSingle();
-    if (error) fail("getRecipe.book", error);
-    book = data;
-  }
+  const pageIds = (pages.data ?? []).map((p) => p.page_id);
+  const [bookRes, pageRes] = await Promise.all([
+    row.cookbook_id
+      ? supabase.from("cookbooks").select("id, title").eq("id", row.cookbook_id).maybeSingle()
+      : null,
+    pageIds.length > 0 ? supabase.from("source_pages").select("id, image_path").in("id", pageIds) : null,
+  ]);
+  if (bookRes?.error) fail("getRecipe.book", bookRes.error);
+  if (pageRes?.error) fail("getRecipe.pages", pageRes.error);
+  const book: RecipeDetails["book"] = bookRes?.data ?? null;
+  // Reading order (the query returns them in any order)
+  const pagePath = new Map((pageRes?.data ?? []).map((p) => [p.id, p.image_path]));
+  const pageRows = pageIds.flatMap((pid) => {
+    const path = pagePath.get(pid);
+    return path ? [{ id: pid, path }] : [];
+  });
 
   // Cover first, then the rest in upload order
   const photoRows = [...(photos.data ?? [])].sort((a, b) => Number(b.is_cover) - Number(a.is_cover));
-  const paths = photoRows.map((p) => p.image_path);
+  const paths = [...photoRows.map((p) => p.image_path), ...pageRows.map((p) => p.path)];
   const [full, thumbs] = await Promise.all([
     signImageUrls(paths, "full"),
     signImageUrls(paths, "thumb"),
@@ -200,7 +208,12 @@ export const getRecipe = cache(async (id: string): Promise<RecipeDetails | null>
       url: full.get(p.image_path) ?? null,
       thumbUrl: thumbs.get(p.image_path) ?? null,
     })),
-    sourcePageIds: (pages.data ?? []).map((p) => p.page_id),
+    sourcePageIds: pageIds,
+    sourcePages: pageRows.map((p) => ({
+      id: p.id,
+      url: full.get(p.path) ?? null,
+      thumbUrl: thumbs.get(p.path) ?? null,
+    })),
   };
 });
 

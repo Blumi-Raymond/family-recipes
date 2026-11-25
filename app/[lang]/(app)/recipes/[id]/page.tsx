@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { Photo } from "@/components/photo";
+import { RecipeGallery, type GalleryItem } from "@/components/recipe-gallery";
 import { Badge, LinkButton } from "@/components/ui";
 import { getTags } from "@/lib/data/common";
 import { getRecipe, type RecipeDetails } from "@/lib/data/recipes";
@@ -12,7 +12,6 @@ import { dirOf, fmt, localePath, plural } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
 import { formatMinutes } from "@/lib/recipes/format";
 import { formatQuantity } from "@/lib/recipes/quantity";
-import { pageIdsParam } from "@/lib/scan/pages";
 import { TrashButton } from "./trash-button";
 
 export async function generateMetadata({ params }: PageProps<"/[lang]/recipes/[id]">): Promise<Metadata> {
@@ -42,7 +41,11 @@ async function RecipeView({ params }: PageProps<"/[lang]/recipes/[id]">) {
   const tagNames = tags
     .filter((tag) => recipe.tagIds.includes(tag.id))
     .map((tag) => ({ id: tag.id, name: locale === "he" ? tag.name_he : tag.name_en }));
-  const [cover, ...more] = recipe.photos;
+  // Dish photos first (main photo first), then the cookbook pages it was scanned from
+  const gallery: GalleryItem[] = [
+    ...recipe.photos.map((p) => ({ key: p.path, kind: "dish" as const, url: p.url, thumbUrl: p.thumbUrl })),
+    ...recipe.sourcePages.map((p) => ({ key: p.id, kind: "page" as const, url: p.url, thumbUrl: p.thumbUrl })),
+  ];
 
   const times = [
     { label: t.recipe.prep, value: recipe.prep_minutes },
@@ -50,102 +53,89 @@ async function RecipeView({ params }: PageProps<"/[lang]/recipes/[id]">) {
     { label: t.recipe.total, value: recipe.total_minutes },
   ].filter((x): x is { label: string; value: number } => x.value !== null);
 
-  return (
-    <article className="flex flex-col gap-8">
-      {/* ---- Title and labels ---- */}
+  const body = (
+    // @container: ingredients and method sit side by side when the column is wide enough
+    <article className="@container flex min-w-0 flex-col gap-8">
+      {/* ---- Title, labels, source ---- */}
       <header className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge tone="brand">{t.kosher[recipe.kosher_type]}</Badge>
-          {tagNames.map((tag) => (
-            <Link key={tag.id} href={`${localePath(locale)}?tags=${tag.id}`}>
-              <Badge>{tag.name}</Badge>
-            </Link>
-          ))}
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-2 pt-1.5">
+            <Badge tone="brand">{t.kosher[recipe.kosher_type]}</Badge>
+            {tagNames.map((tag) => (
+              <Link key={tag.id} href={`${localePath(locale)}?tags=${tag.id}`} className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-brand/40">
+                <Badge>{tag.name}</Badge>
+              </Link>
+            ))}
+          </div>
+          <LinkButton href={localePath(locale, `/recipes/${recipe.id}/edit`)} variant="secondary">
+            <PencilIcon />
+            {t.common.edit}
+          </LinkButton>
         </div>
-        <h1 {...content} className="text-[34px] font-bold leading-tight tracking-tight">
+        <h1 {...content} className="text-[34px] font-bold leading-tight tracking-tight @2xl:text-[40px]">
           {recipe.title}
         </h1>
         {recipe.description && (
-          <p {...content} className="max-w-2xl text-[17px] leading-relaxed text-ink-soft">
+          <p {...content} className="text-[17px] leading-relaxed text-ink-soft">
             {recipe.description}
           </p>
         )}
-        <SourceLine recipe={recipe} />
+        <SourceText recipe={recipe} />
       </header>
-
-      {/* ---- Photos ---- */}
-      {cover && (
-        <div className="flex flex-col gap-3">
-          <a href={cover.url ?? undefined} target="_blank" rel="noopener" className="block max-w-3xl">
-            <Photo
-              src={cover.url}
-              alt={recipe.title}
-              eager
-              className="aspect-[4/3] w-full rounded-2xl border border-line"
-            />
-          </a>
-          {more.length > 0 && (
-            <ul className="flex flex-wrap gap-3">
-              {more.map((p, i) => (
-                <li key={p.path}>
-                  <a href={p.url ?? undefined} target="_blank" rel="noopener" className="block">
-                    <Photo
-                      src={p.thumbUrl}
-                      alt={fmt(t.recipe.photo, { n: i + 2 })}
-                      className="size-24 rounded-xl border border-line"
-                    />
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
 
       {/* ---- Amount and time ---- */}
       {(recipe.yield_text || recipe.servings || times.length > 0) && (
-        <dl className="flex flex-wrap gap-x-8 gap-y-3 rounded-2xl bg-brand-tint px-6 py-4 text-[15px]">
-          {recipe.yield_text && (
-            <div {...content}>
-              <dt className="sr-only">{t.recipeForm.yield}</dt>
-              <dd className="font-semibold">{recipe.yield_text}</dd>
-            </div>
-          )}
-          {recipe.servings && (
-            <div>
-              <dt className="sr-only">{t.recipeForm.servings}</dt>
-              <dd className="font-semibold">
-                {plural(recipe.servings, t.recipe.servingsOne, t.recipe.servingsOther)}
+        <dl className="flex flex-wrap gap-x-7 gap-y-4 border-y border-line py-4 sm:gap-x-10">
+          {(recipe.yield_text || recipe.servings) && (
+            <div className="flex flex-col gap-0.5">
+              <dt className="text-[13px] text-ink-soft">{t.recipe.amount}</dt>
+              {/* "As written" in the recipe's language; servings in the site's */}
+              <dd className="text-[17px] font-semibold">
+                {recipe.yield_text && <bdi {...content}>{recipe.yield_text}</bdi>}
+                {recipe.yield_text && recipe.servings && " · "}
+                {recipe.servings && <bdi>{plural(recipe.servings, t.recipe.servingsOne, t.recipe.servingsOther)}</bdi>}
               </dd>
             </div>
           )}
           {times.map((time) => (
-            <div key={time.label} className="flex gap-1.5">
-              <dt className="text-ink-soft">{time.label}</dt>
-              <dd className="font-semibold">{formatMinutes(time.value, t.time)}</dd>
+            <div key={time.label} className="flex flex-col gap-0.5">
+              <dt className="text-[13px] text-ink-soft">{time.label}</dt>
+              <dd className="text-[17px] font-semibold">{formatMinutes(time.value, t.time)}</dd>
             </div>
           ))}
         </dl>
       )}
 
       {/* ---- Ingredients + method ---- */}
-      <div {...content} className="grid gap-10 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+      {(recipe.ingredients.length > 0 || recipe.steps.length > 0) && (
+        <div
+          {...content}
+          className={
+            "grid items-start gap-8 @2xl:gap-10 " +
+            (recipe.ingredients.length > 0 && recipe.steps.length > 0
+              ? "@2xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]"
+              : "")
+          }
+        >
         {recipe.ingredients.length > 0 && (
-          <section className="flex flex-col gap-4">
-            <h2 lang={locale} dir={dirOf(locale)} className="text-[20px] font-bold tracking-tight">
+          <section className="flex flex-col gap-4 rounded-2xl bg-brand-tint p-6">
+            <h2 lang={locale} dir={dirOf(locale)} className="flex items-baseline justify-between gap-3 text-[20px] font-bold tracking-tight">
               {t.recipeForm.sectionIngredients}
+              <span className="text-[13px] font-normal text-ink-soft">
+                {fmt(t.recipe.ingredientsCount, { n: recipe.ingredients.length })}
+              </span>
             </h2>
             {bySection(recipe.ingredients).map((group, gi) => (
-              <div key={gi} className="flex flex-col gap-2">
-                {group.section && <h3 className="text-[15px] font-semibold text-brand">{group.section}</h3>}
+              <div key={gi} className="flex flex-col gap-1">
+                {group.section && <h3 className="pt-2 text-[15px] font-semibold text-brand">{group.section}</h3>}
                 <ul className="flex flex-col">
                   {group.items.map((ing, i) => {
-                    const amount = formatQuantity(ing.quantity, ing.quantity_max);
+                    const qty = formatQuantity(ing.quantity, ing.quantity_max);
                     return (
                       <li key={i} className="border-b border-line py-2.5 text-[15px] leading-snug last:border-0">
-                        {(amount || ing.unit) && (
+                        {(qty || ing.unit) && (
                           <span className="font-semibold">
-                            <bdi>{amount}</bdi>
+                            <bdi>{qty}</bdi>
                             {ing.unit ? ` ${ing.unit}` : ""}{" "}
                           </span>
                         )}
@@ -164,7 +154,7 @@ async function RecipeView({ params }: PageProps<"/[lang]/recipes/[id]">) {
         )}
 
         {recipe.steps.length > 0 && (
-          <section className="flex flex-col gap-4">
+          <section className="flex flex-col gap-5 @2xl:pt-6">
             <h2 lang={locale} dir={dirOf(locale)} className="text-[20px] font-bold tracking-tight">
               {t.recipeForm.sectionSteps}
             </h2>
@@ -172,6 +162,7 @@ async function RecipeView({ params }: PageProps<"/[lang]/recipes/[id]">) {
           </section>
         )}
       </div>
+      )}
 
       {/* ---- Notes ---- */}
       {recipe.notes && (
@@ -183,12 +174,34 @@ async function RecipeView({ params }: PageProps<"/[lang]/recipes/[id]">) {
         </section>
       )}
 
-      {/* ---- Actions ---- */}
-      <div className="flex flex-wrap items-start gap-3 border-t border-line pt-6">
-        <LinkButton href={localePath(locale, `/recipes/${recipe.id}/edit`)}>{t.common.edit}</LinkButton>
+      {/* ---- Rarely needed: at the end, out of the way ---- */}
+      <div className="flex border-t border-line pt-6">
         <TrashButton id={recipe.id} />
       </div>
     </article>
+  );
+
+  if (gallery.length === 0) return body;
+
+  // Photos beside the recipe on wide screens: the recipe on the start side
+  // (right in Hebrew, left in English), the photos on the end side, staying in
+  // view while scrolling. Narrower: the photos on top, then the recipe.
+  return (
+    <div data-wide className="grid items-start gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-12">
+      {body}
+      <aside aria-label={t.recipe.photos} className="order-first min-w-0 lg:sticky lg:top-6 lg:order-none">
+        <RecipeGallery items={gallery} title={recipe.title} />
+      </aside>
+    </div>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 20h4L19 9l-4-4L4 16v4z" />
+      <path d="M14 6l4 4" />
+    </svg>
   );
 }
 
@@ -215,24 +228,6 @@ function StepsList({ steps }: { steps: RecipeDetails["steps"] }) {
           </ol>
         </div>
       ))}
-    </div>
-  );
-}
-
-async function SourceLine({ recipe }: { recipe: RecipeDetails }) {
-  const { locale, t } = await getI18n();
-  const source = <SourceText recipe={recipe} />;
-  if (recipe.sourcePageIds.length === 0) return source;
-  // Scanned: back to its page photos (and any recipe from them not saved yet)
-  return (
-    <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-      {source}
-      <Link
-        href={`${localePath(locale, "/scan/review")}?pages=${pageIdsParam(recipe.sourcePageIds)}`}
-        className="text-[15px] font-medium text-brand underline-offset-4 hover:underline"
-      >
-        {t.recipe.scanPages}
-      </Link>
     </div>
   );
 }

@@ -41,11 +41,12 @@ type PasteError = Extract<ParseResult, { ok: false }>["error"];
 
 const CHAT_URL = "https://claude.ai/new";
 
-// Where to go once an answer is known: one unsaved recipe -> its form;
-// otherwise the list (choose a recipe / see what was saved / "no recipe")
+// Where to go once an answer is known: exactly one recipe left to save ->
+// its form; otherwise the list (choose a recipe / all saved / "no recipe")
 function viewFor(a: ScanAnswer, saved: Record<string, string>): View {
-  if (a.status === "ok" && a.recipes.length === 1 && !saved["0"]) return { kind: "form", index: 0 };
-  return { kind: "list" };
+  if (a.status !== "ok") return { kind: "list" };
+  const left = a.recipes.flatMap((_, i) => (saved[i] ? [] : [i]));
+  return left.length === 1 ? { kind: "form", index: left[0] } : { kind: "list" };
 }
 
 export function ScanReview(props: Props) {
@@ -149,13 +150,14 @@ function ReviewSteps({ pageIds, pages, cookbook, groupId, books, tags, draft }: 
         await markScanRecipeSaved(draftId, index, id);
       } catch {}
     }
-    const left = drafts.filter((_, i) => !next[i]).length;
-    if (left === 0) {
+    const left = drafts.flatMap((_, i) => (next[i] ? [] : [i]));
+    if (left.length === 0) {
       // All done: to the recipe (this screen waits, hidden, for "back")
       router.push(localePath(locale, `/recipes/${id}`));
     } else {
+      // Saved recipes leave the list; the last one left opens straight away
       setJustSaved(id);
-      setView({ kind: "list" });
+      setView(left.length === 1 ? { kind: "form", index: left[0] } : { kind: "list" });
       window.scrollTo({ top: 0 });
     }
   }
@@ -200,28 +202,28 @@ function ReviewSteps({ pageIds, pages, cookbook, groupId, books, tags, draft }: 
       </div>
     );
   } else if (view.kind === "list") {
+    const unsaved = drafts.flatMap((_, i) => (saved[i] ? [] : [i]));
+    const savedCount = drafts.length - unsaved.length;
     main = (
       <div className="flex flex-col gap-5">
-        {justSaved && (
-          <Alert tone="success">
-            {t.scanReview.savedNotice}{" "}
-            <Link href={localePath(locale, `/recipes/${justSaved}`)} className="font-semibold underline underline-offset-4">
-              {t.scanReview.viewSaved}
-            </Link>
-          </Alert>
-        )}
         <div className="flex flex-col gap-1">
           <h2 className="text-[17px] font-bold tracking-tight">
-            {plural(drafts.length, t.scanReview.chooseTitleOne, t.scanReview.chooseTitle)}
+            {unsaved.length === 0
+              ? t.scanReview.allSaved
+              : savedCount > 0
+              ? plural(unsaved.length, t.scanReview.leftTitleOne, t.scanReview.leftTitle)
+              : plural(drafts.length, t.scanReview.chooseTitleOne, t.scanReview.chooseTitle)}
           </h2>
-          {drafts.length > 1 && <p className="text-[15px] text-ink-soft">{t.scanReview.chooseText}</p>}
+          {unsaved.length > 1 && <p className="text-[15px] text-ink-soft">{t.scanReview.chooseText}</p>}
         </div>
         {answer.unreadable_parts && (
           <CheckNote>{fmt(t.scanReview.unreadableParts, { text: answer.unreadable_parts })}</CheckNote>
         )}
         <ul className="flex flex-col gap-3">
+          {/* Saved ones leave the list; once everything is saved, they show as links */}
           {drafts.map(({ form }, i) => {
             const savedId = saved[i];
+            if (savedId && unsaved.length > 0) return null;
             const count = form.ingredients.filter((r) => r.kind === "item").length;
             return (
               <li
@@ -296,6 +298,14 @@ function ReviewSteps({ pageIds, pages, cookbook, groupId, books, tags, draft }: 
   return (
     <div className="flex flex-col gap-5">
       {notStored && view.kind !== "paste" && <Alert>{t.scanReview.notStored}</Alert>}
+      {justSaved && view.kind !== "paste" && (
+        <Alert tone="success">
+          {t.scanReview.savedNotice}{" "}
+          <Link href={localePath(locale, `/recipes/${justSaved}`)} className="font-semibold underline underline-offset-4">
+            {t.scanReview.viewSaved}
+          </Link>
+        </Alert>
+      )}
       {main}
     </div>
   );

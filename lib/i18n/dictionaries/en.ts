@@ -31,6 +31,7 @@ const en: Dictionary = {
     edit: "Edit",
     back: "Back",
     genericError: "Something went wrong. Please try again in a moment.",
+    close: "Close",
   },
 
 
@@ -205,7 +206,15 @@ const en: Dictionary = {
     moveToTrash: "Move to trash",
     trashConfirm: "Move this recipe to the trash?",
     trashNote: "You can restore it from the trash for 30 days.",
-    scanPages: "Scan pages",
+    photos: "Photos",
+    bookPageOne: "The original page",
+    bookPage: "The original page, {n}",
+    enlarge: "Enlarge",
+    previousPhoto: "Previous photo",
+    nextPhoto: "Next photo",
+    photoOf: "{n} of {total}",
+    amount: "Makes",
+    ingredientsCount: "{n} ingredients",
   },
 
   scan: {
@@ -282,6 +291,9 @@ const en: Dictionary = {
     saved: "Saved",
     viewSaved: "View",
     savedNotice: "The recipe was saved.",
+    allSaved: "All the recipes from these pages are saved",
+    leftTitleOne: "One recipe left to check",
+    leftTitle: "{n} recipes left to check",
     ingredientsOne: "1 ingredient",
     ingredientsOther: "{n} ingredients",
     pageNumber: "p. {n}",
