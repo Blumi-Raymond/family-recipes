@@ -33,6 +33,7 @@ export function PagePicker({
   const { t } = useI18n();
   const inputId = useId();
   const hintId = useId();
+  const labelId = useId();
   const [uploading, setUploading] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
@@ -84,9 +85,11 @@ export function PagePicker({
     "rounded outline-none focus-visible:ring-2 focus-visible:ring-brand/40";
 
   return (
-    <div className="flex flex-col gap-3">
+    <div role="group" aria-labelledby={labelId} aria-describedby={hintId} className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
-        <span className="text-[13px] font-medium text-ink">{label}</span>
+        <span id={labelId} className="text-[13px] font-medium text-ink">
+          {label}
+        </span>
         <p id={hintId} className="text-xs text-ink-faint">
           {hint}
         </p>

@@ -146,7 +146,7 @@ test("prompt: the paste version carries the answer's shape; the API version does
 const ctx: ToFormContext = {
   locale: "he",
   bookId: "",
-  tags: tags.map((t) => ({ id: t.id, slug: t.slug })),
+  tags,
   handwrittenSource: "בכתב יד",
 };
 
@@ -329,4 +329,35 @@ test("an English recipe stays English; an empty recipe is marked", () => {
   const empty = scannedRecipeToForm(recipe(), ctx);
   assert.deepEqual(empty.review.checks.map((c) => c.target), ["general"]);
   assert.equal(empty.form.ingredients.length, 1); // one empty row to start typing
+});
+
+// ---------------------------------------------------------------------
+// Edge cases found in review (25.11)
+// ---------------------------------------------------------------------
+test("paste: braces in the chat's text around a ```json block don't break it", () => {
+  const json = JSON.stringify(minimal);
+  const pasted = `Notes {see below}:\n\`\`\`json\n${json}\n\`\`\`\nTip: use {curly} braces carefully.`;
+  assert.equal(parseScanAnswer(pasted).ok, true);
+  // A broken block but good JSON outside it: the whole text is tried too
+  assert.equal(parseScanAnswer("```\nnot json\n```\n" + json).ok, true);
+});
+
+test("fixed choices ignore case and spaces", () => {
+  const r = parseScanAnswer(
+    JSON.stringify({
+      status: " OK ",
+      recipes: [{ title: "x", kosher_type: "Dairy ", checks: [{ field: "Title", index: -1, reason: "r" }] }],
+    }),
+  );
+  assert.ok(r.ok);
+  if (!r.ok) return;
+  assert.equal(r.answer.status, "ok");
+  assert.equal(r.answer.recipes[0].kosher_type, "dairy");
+  assert.equal(r.answer.recipes[0].checks[0].field, "title");
+});
+
+test("tags: an id, or the Hebrew / English name, all work; others are dropped", () => {
+  const { form, review } = scannedRecipeToForm(recipe({ tags: ["CAKE", "שבת", "Cakes", "unknown"] }), ctx);
+  assert.deepEqual(form.tagIds, [tags[0].id, tags[1].id]);
+  assert.deepEqual(review.droppedTags, ["unknown"]);
 });

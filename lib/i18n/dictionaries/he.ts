@@ -247,6 +247,7 @@ const he = {
     fromBook: "מתוך: {book}",
     notFromBook: "לא מספר",
     pageOf: "עמוד {n} מתוך {total}",
+    newScan: "סריקה חדשה",
   },
 
   trash: {

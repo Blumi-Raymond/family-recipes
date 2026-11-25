@@ -229,6 +229,7 @@ const en: Dictionary = {
     fromBook: "From: {book}",
     notFromBook: "Not from a book",
     pageOf: "Page {n} of {total}",
+    newScan: "New scan",
   },
 
   trash: {

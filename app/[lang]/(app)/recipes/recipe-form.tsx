@@ -30,6 +30,7 @@ import {
 import { saveRecipe } from "@/lib/actions/recipes";
 import type { RecipeDetails } from "@/lib/data/recipes";
 import type { Tag } from "@/lib/data/common";
+import { useLeaveAfterSave } from "@/lib/forms/use-leave-after-save";
 import { useI18n } from "@/lib/i18n/client";
 import { dirOf, fmt, localePath } from "@/lib/i18n/config";
 import {
@@ -71,6 +72,15 @@ export function RecipeForm({ recipe, groupId, books, tags, initialBookId }: Prop
   const [pending, startTransition] = useTransition();
   const [dirty, setDirty] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  // After saving: locked until we've moved on. Then (hidden, kept for the
+  // "back" button) a NEW recipe's form starts fresh, so "back" + "save" can't
+  // create the same recipe twice. Editing keeps its values: saving again
+  // only updates the same recipe.
+  const { leaving, startLeaving } = useLeaveAfterSave(() => {
+    if (!recipe) setForm((f) => ({ ...initialFormState(null, locale), bookId: f.bookId }));
+    setErrors({});
+    setFormError(null);
+  });
 
   // Content fields follow the RECIPE's language (detected from the text),
   // not the site's
@@ -109,7 +119,7 @@ export function RecipeForm({ recipe, groupId, books, tags, initialBookId }: Prop
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
-    if (uploading || pending) return;
+    if (uploading || pending || leaving) return;
 
     const result = formToInput(form);
     if (!result.ok) {
@@ -131,13 +141,7 @@ export function RecipeForm({ recipe, groupId, books, tags, initialBookId }: Prop
       }
       if (saved.ok) {
         setDirty(false);
-        // Next.js keeps this screen (hidden) for the browser's "back" button.
-        // A NEW recipe's form starts fresh, so "back" + "save" can't create
-        // the same recipe twice. (Editing keeps its values: saving again only
-        // updates the same recipe.)
-        if (!recipe) {
-          setForm((f) => ({ ...initialFormState(null, locale), bookId: f.bookId }));
-        }
+        startLeaving(); // locked until the recipe page shows
         router.push(localePath(locale, `/recipes/${saved.id}`));
       } else {
         setFormError(saved.error);
@@ -317,8 +321,8 @@ export function RecipeForm({ recipe, groupId, books, tags, initialBookId }: Prop
         {formError && <Alert>{t.formErrors[formError]}</Alert>}
         {uploading && <p className="text-sm text-ink-soft">{t.images.waitForUpload}</p>}
         <div className="flex flex-wrap gap-2">
-          <Button type="submit" block={false} disabled={pending || uploading}>
-            {pending ? t.common.saving : t.recipeForm.save}
+          <Button type="submit" block={false} disabled={pending || leaving || uploading}>
+            {pending || leaving ? t.common.saving : t.recipeForm.save}
           </Button>
           <LinkButton href={cancelHref} variant="secondary" size="md">
             {t.common.cancel}

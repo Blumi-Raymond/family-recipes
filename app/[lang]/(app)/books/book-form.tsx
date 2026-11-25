@@ -6,6 +6,7 @@ import { ConfirmButton } from "@/components/confirm-button";
 import { PhotoPicker, type PickedPhoto } from "@/components/photo-picker";
 import { Alert, Button, Field, LinkButton, TextArea } from "@/components/ui";
 import { deleteCookbook, saveCookbook } from "@/lib/actions/books";
+import { useLeaveAfterSave } from "@/lib/forms/use-leave-after-save";
 import { cookbookSchema, type CookbookInput } from "@/lib/books/schema";
 import { useI18n } from "@/lib/i18n/client";
 import { localePath, type Locale } from "@/lib/i18n/config";
@@ -37,13 +38,26 @@ export function BookForm({ initial, groupId }: { initial: BookFormInitial | null
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<FormErrorKey | null>(null);
   const [pending, startTransition] = useTransition();
+  // After saving: locked until we've moved on. Then (hidden, kept for the
+  // "back" button) a NEW book's form starts fresh, so "back" + "save" can't
+  // create the same book twice.
+  const { leaving, startLeaving } = useLeaveAfterSave(() => {
+    if (!initial) {
+      setTitle("");
+      setAuthor("");
+      setNotes("");
+      setCover([]);
+    }
+    setErrors({});
+    setFormError(null);
+  });
 
   const booksPath = localePath(locale, "/books");
   const fieldError = (key: string) => (errors[key] ? t.formErrors[errors[key]] : undefined);
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
-    if (uploading) return;
+    if (uploading || pending || leaving) return;
 
     const input: CookbookInput = {
       title,
@@ -71,15 +85,7 @@ export function BookForm({ initial, groupId }: { initial: BookFormInitial | null
         return;
       }
       if (result.ok) {
-        // Next.js keeps this screen (hidden) for the browser's "back" button.
-        // A NEW book's form starts fresh, so "back" + "save" can't create
-        // the same book twice.
-        if (!initial) {
-          setTitle("");
-          setAuthor("");
-          setNotes("");
-          setCover([]);
-        }
+        startLeaving(); // locked until the books page shows
         router.push(booksPath);
       } else {
         setErrors(result.fieldErrors ?? {});
@@ -131,8 +137,8 @@ export function BookForm({ initial, groupId }: { initial: BookFormInitial | null
       {uploading && <p className="text-sm text-ink-soft">{t.images.waitForUpload}</p>}
 
       <div className="mt-2 flex flex-wrap gap-2">
-        <Button type="submit" block={false} disabled={pending || uploading}>
-          {pending ? t.common.saving : t.books.save}
+        <Button type="submit" block={false} disabled={pending || leaving || uploading}>
+          {pending || leaving ? t.common.saving : t.books.save}
         </Button>
         <LinkButton href={booksPath} variant="secondary" size="md">
           {t.common.cancel}

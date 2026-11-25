@@ -18,10 +18,10 @@ export default async function AppLayout({ children }: LayoutProps<"/[lang]">) {
           <Link href={localePath(locale)} className="rounded-field outline-none focus-visible:ring-2 focus-visible:ring-brand/40">
             <Logo name={t.meta.siteName} />
           </Link>
-          <div className="order-last w-full sm:order-none sm:w-auto sm:flex-1">
+          <div className="order-last w-full lg:order-none lg:w-auto lg:flex-1">
             <MainNav />
           </div>
-          <div className="ms-auto flex items-center gap-2 sm:ms-0">
+          <div className="ms-auto flex items-center gap-2 lg:ms-0">
             <LanguageSwitch />
             <SignOutButton locale={locale} label={t.nav.signOut} />
           </div>

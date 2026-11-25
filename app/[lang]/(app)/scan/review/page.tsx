@@ -5,9 +5,9 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { FormSkeleton } from "@/components/skeletons";
 import { Photo } from "@/components/photo";
-import { PageHeader } from "@/components/ui";
+import { LinkButton, PageHeader } from "@/components/ui";
 import { getScanPages } from "@/lib/data/scan";
-import { fmt } from "@/lib/i18n/config";
+import { fmt, localePath } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
 import { parsePageIds } from "@/lib/scan/pages";
 
@@ -51,10 +51,17 @@ async function Review({ searchParams }: PageProps<"/[lang]/scan/review">) {
 }
 
 export default async function ScanReviewPage(props: PageProps<"/[lang]/scan/review">) {
-  const { t } = await getI18n();
+  const { locale, t } = await getI18n();
   return (
     <>
-      <PageHeader title={t.scan.reviewTitle} />
+      <PageHeader
+        title={t.scan.reviewTitle}
+        actions={
+          <LinkButton href={localePath(locale, "/scan")} variant="secondary">
+            {t.scan.newScan}
+          </LinkButton>
+        }
+      />
       <Suspense fallback={<FormSkeleton />}>
         <Review {...props} />
       </Suspense>

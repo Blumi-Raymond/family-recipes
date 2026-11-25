@@ -131,6 +131,9 @@ const text = z.preprocess(
   z.string().max(10000).transform((s) => s.trim()),
 );
 const flag = z.boolean().catch(false);
+// "Dairy" / " dairy " -> "dairy" (fixed-choice fields)
+const choice = <T extends string>(values: readonly [T, ...T[]]) =>
+  z.preprocess((v) => (typeof v === "string" ? v.trim().toLowerCase() : v), z.enum(values));
 const list = <T extends z.ZodType>(item: T, max: number) =>
   z.preprocess((v) => (v === null || v === undefined ? [] : v), z.array(item).max(max));
 
@@ -148,7 +151,7 @@ const ingredient = z.object({
 const step = z.object({ section: text, text, handwritten: text });
 
 const check = z.object({
-  field: z.enum(CHECK_FIELDS).catch("general"),
+  field: choice(CHECK_FIELDS).catch("general"),
   index: z.number().int().catch(-1),
   reason: text,
 });
@@ -165,7 +168,10 @@ const recipe = z.object({
   ingredients: list(ingredient, MAX_INGREDIENTS),
   steps: list(step, MAX_STEPS),
   notes: text,
-  kosher_type: z.enum(["meat", "dairy", "pareve"]).or(z.literal("")).catch(""),
+  // "" = no (valid) suggestion -> the review screen asks her to choose
+  kosher_type: choice(["meat", "dairy", "pareve"])
+    .or(z.literal(""))
+    .catch("" as const),
   kosher_reason: text,
   tags: list(text, 20).transform((tags) => tags.filter(Boolean).slice(0, MAX_TAGS)),
   handwritten_page: flag,
@@ -174,7 +180,7 @@ const recipe = z.object({
 });
 
 export const scanAnswerSchema = z.object({
-  status: z.enum(["ok", "not_recipe", "unreadable"]).catch("ok"),
+  status: choice(["ok", "not_recipe", "unreadable"]).catch("ok"),
   message: text,
   unreadable_parts: text,
   recipes: list(recipe, MAX_RECIPES_PER_SCAN),

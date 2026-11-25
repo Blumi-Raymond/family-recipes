@@ -48,7 +48,7 @@ export type ScanReview = {
 export type ToFormContext = {
   locale: Locale; // the site's language (fallback for the recipe's language)
   bookId: string; // chosen on the scan screen; "" = not from a book
-  tags: { id: string; slug: string }[];
+  tags: { id: string; slug: string; name_he: string; name_en: string }[];
   handwrittenSource: string; // "בכתב יד" — source for a handwritten sheet with no book
 };
 
@@ -165,10 +165,15 @@ export function scannedRecipeToForm(
     checks.push({ target, reason: { kind: "ai", text: c.reason } });
   }
 
-  // ---- tags: only ones that exist (anything else is dropped here) ----
-  const bySlug = new Map(ctx.tags.map((t) => [t.slug, t.id]));
-  const tagIds = [...new Set(recipe.tags.map((slug) => bySlug.get(slug)).filter((id): id is string => !!id))];
-  const droppedTags = recipe.tags.filter((slug) => !bySlug.has(slug));
+  // ---- tags: only ones that exist (anything else is dropped here).
+  // Asked for the id; a name ("עוגות", "Cakes") is understood too. ----
+  const byKey = new Map<string, string>();
+  for (const t of ctx.tags) {
+    for (const k of [t.slug, t.name_he, t.name_en]) byKey.set(k.trim().toLowerCase(), t.id);
+  }
+  const tagOf = (value: string) => byKey.get(value.trim().toLowerCase());
+  const tagIds = [...new Set(recipe.tags.map(tagOf).filter((id): id is string => !!id))];
+  const droppedTags = recipe.tags.filter((value) => !tagOf(value));
 
   // A handwritten sheet with no book chosen: source "handwritten" (editable)
   const sourceNote = !ctx.bookId && recipe.handwritten_page ? ctx.handwrittenSource : "";

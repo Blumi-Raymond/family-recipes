@@ -40,7 +40,7 @@ function NavLinks({ pathname }: { pathname: string | null }) {
       : pathname === href || pathname.startsWith(`${href}/`);
 
   return (
-    <nav aria-label={t.nav.main} className="flex items-center gap-1 overflow-x-auto">
+    <nav aria-label={t.nav.main} className="flex items-center gap-0.5 overflow-x-auto lg:gap-1">
       {items.map((item) => {
         const active = isActive(item.href);
         return (
@@ -49,7 +49,7 @@ function NavLinks({ pathname }: { pathname: string | null }) {
             href={item.href}
             aria-current={active ? "page" : undefined}
             className={
-              "inline-flex h-10 shrink-0 items-center rounded-field px-3 text-[15px] transition-colors " +
+              "inline-flex h-10 shrink-0 items-center rounded-field px-2.5 text-[15px] transition-colors max-[440px]:px-2 lg:px-3 " +
               "outline-none focus-visible:ring-2 focus-visible:ring-brand/40 " +
               (active
                 ? "bg-brand-tint font-semibold text-brand-dark"
@@ -64,7 +64,7 @@ function NavLinks({ pathname }: { pathname: string | null }) {
         href={newRecipe}
         aria-current={pathname === newRecipe ? "page" : undefined}
         className={
-          "ms-2 inline-flex h-10 shrink-0 items-center gap-1.5 rounded-field bg-brand px-4 text-sm font-semibold text-white " +
+          "ms-auto inline-flex h-10 shrink-0 items-center gap-1.5 rounded-field bg-brand px-3 text-sm font-semibold text-white max-[440px]:px-2.5 lg:ms-2 lg:px-4 " +
           "transition-colors hover:bg-brand-dark outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:ring-offset-2"
         }
       >
@@ -80,7 +80,8 @@ function NavLinks({ pathname }: { pathname: string | null }) {
         >
           <path d="M12 5v14M5 12h14" />
         </svg>
-        {t.nav.addRecipe}
+        {/* Small phones: the "+" alone (the text is still read out) */}
+        <span className="max-[440px]:sr-only">{t.nav.addRecipe}</span>
       </Link>
     </nav>
   );

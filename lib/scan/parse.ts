@@ -11,11 +11,22 @@ export type ParseResult =
   | { ok: true; answer: ScanAnswer }
   | { ok: false; error: "empty" | "tooLong" | "notJson" | "wrongShape" };
 
-// The JSON object inside the pasted text: from the first "{" to the last "}"
-function extractObject(text: string): string | null {
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  return start === -1 || end <= start ? null : text.slice(start, end + 1);
+// Where the JSON object may be, best guess first:
+//   1. inside a ```json (or ```) code block — chats put it there, and any
+//      text around the block may contain braces of its own
+//   2. from the first "{" to the last "}" of the whole text
+function candidates(text: string): string[] {
+  const found: string[] = [];
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced) found.push(fenced[1]);
+  found.push(text);
+  return found
+    .map((t) => {
+      const start = t.indexOf("{");
+      const end = t.lastIndexOf("}");
+      return start === -1 || end <= start ? "" : t.slice(start, end + 1);
+    })
+    .filter(Boolean);
 }
 
 export function parseScanAnswer(pasted: string): ParseResult {
@@ -23,16 +34,16 @@ export function parseScanAnswer(pasted: string): ParseResult {
   if (!text) return { ok: false, error: "empty" };
   if (text.length > MAX_PASTE_LENGTH) return { ok: false, error: "tooLong" };
 
-  const json = extractObject(text);
-  if (!json) return { ok: false, error: "notJson" };
-
-  let data: unknown;
-  try {
-    data = JSON.parse(json);
-  } catch {
-    return { ok: false, error: "notJson" };
+  for (const json of candidates(text)) {
+    let data: unknown;
+    try {
+      data = JSON.parse(json);
+    } catch {
+      continue; // try the next place
+    }
+    return checkScanAnswer(data);
   }
-  return checkScanAnswer(data);
+  return { ok: false, error: "notJson" };
 }
 
 // Already-parsed data (the direct path, or the scan log): same check
