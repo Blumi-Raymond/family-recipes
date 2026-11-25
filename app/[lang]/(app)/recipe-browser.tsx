@@ -137,6 +137,23 @@ export function RecipeBrowser({
                 {filters.tagIds.length > 0 && ` (${filters.tagIds.length})`}
               </Chip>
             )}
+            {/* Always takes its place (hidden when there's nothing to clear), so the list never moves */}
+            <button
+              type="button"
+              onClick={() => {
+                setQ("");
+                go({ q: "", kosher: null, tagIds: [], bookId: null });
+              }}
+              aria-hidden={!hasFilters(filters)}
+              tabIndex={hasFilters(filters) ? 0 : -1}
+              className={
+                "h-9 rounded-field px-2 text-sm font-medium text-brand underline-offset-4 hover:underline " +
+                "outline-none focus-visible:ring-2 focus-visible:ring-brand/40 " +
+                (hasFilters(filters) ? "" : "invisible")
+              }
+            >
+              {t.list.clear}
+            </button>
           </div>
           {books.length > 0 && (
             <div className="w-full sm:w-64">
@@ -166,19 +183,6 @@ export function RecipeBrowser({
               </Chip>
             ))}
           </div>
-        )}
-
-        {hasFilters(filters) && (
-          <button
-            type="button"
-            onClick={() => {
-              setQ("");
-              go({ q: "", kosher: null, tagIds: [], bookId: null });
-            }}
-            className="self-start text-sm font-medium text-brand underline-offset-4 hover:underline"
-          >
-            {t.list.clear}
-          </button>
         )}
       </div>
 

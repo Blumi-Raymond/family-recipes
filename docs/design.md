@@ -34,8 +34,8 @@ Do not add new colors without updating this table and `globals.css`.
 - Inputs and buttons: 48px high, radius 10px (`rounded-field`).
 - Cards / boxes: radius 16px (`rounded-2xl`), `bg-brand-tint` or white with `border-line`.
 - Forms: max width ~380px, 18px between fields, 28px between sections.
-- Page content: `max-w-5xl` with 24px side padding. A screen that needs more room (the scan review: form + page photo
-  side by side) puts `data-wide` on an element, and the frame widens to `max-w-7xl` (`app/[lang]/(app)/layout.tsx`, CSS `:has`).
+- One frame width on every page: `max-w-7xl`, 24px side padding (16px on phones). The header never moves between pages
+  (it used to widen for some screens — that was a visible jump). Narrow content (forms) sits on the start side.
 - The recipe form follows its **own** width, not the window's (container queries: `@container` on the form,
   `@xl:` / `@2xl:` inside), so it also works in the narrower column next to a photo.
 
@@ -69,13 +69,23 @@ All in `components/ui.tsx` unless noted. Build screens from these.
 - Scan review screen: the form on the start side, the page photo (sticky, page tabs, zoom, open full size) on the end
   side from 1280px; below that the photo sits above the form.
 - Recipe page: from 1024px the recipe sits on the start side (right in Hebrew) and the photos on the end side, sticky
-  (`data-wide`). Below that, the photos are on top. In the recipe column: labels + "עריכה" on one row, title (40px when the
+  Below that, the photos are on top. A recipe without photos stays within `max-w-5xl`. In the recipe column: labels + "עריכה" on one row, title (40px when the
   column is wide), a line of amount and times between two thin lines, then ingredients (a `bg-brand-tint` box) beside the
   numbered method when the column is wide enough (`@container` / `@2xl`), else one under the other. "העברה לסל" at the end.
 - Recipe photos = `<RecipeGallery>` (`components/recipe-gallery.tsx`): one big photo, small ones underneath (the chosen
   one has a brand ring). A click on a small one shows it big — only for now, the main photo doesn't change. A click on the
   big one opens it over the page (dark background, previous/next, arrow keys, Escape). The scanned cookbook pages come
   last, shown whole (`object-contain`), with a caption.
+- Recipe form, when it is wide (`@5xl`, a full page on a computer): the recipe itself (details, ingredients, method, notes)
+  in the main column; source, amount and time, labels and photos in a 22rem side column (its own `@container`). Narrower
+  (phone, or beside the page photo when scanning): one column in that order.
+- **Nothing moves by itself.** Something that appears or disappears depending on a choice takes a fixed place:
+  - a field that depends on another (book -> "page", no book -> "other source") swaps in the same slot, same height
+    (hints as placeholders there);
+  - an action that is only sometimes available ("ניקוי הסינון") stays in place, `invisible` when not needed;
+  - status text while uploading goes inside the button ("התמונות עולות..."), not as an extra line;
+  - things that load late go where they don't push content (title row actions, a pill after a menu link).
+  Errors after "save" may add a line under a field — that's expected. Check new screens for jumps (layout shift = 0).
 - Text uses feminine Hebrew forms (the users are women in the family), e.g. "התחברי".
 
 ## Two languages

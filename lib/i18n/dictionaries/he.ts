@@ -100,6 +100,7 @@ const he = {
     errorType: "את הקובץ הזה אי אפשר לפתוח כתמונה.",
     errorUpload: "העלאת התמונה נכשלה. כדאי לנסות שוב.",
     waitForUpload: "רגע, התמונות עוד עולות.",
+    uploadingShort: "התמונות עולות...",
   },
 
   confirm: {

@@ -88,9 +88,10 @@ export function PhotoPicker({
   const canAdd = single || photos.length + uploading < max;
 
   return (
-    <div className="flex flex-col gap-3">
+    // @container: as many photos per row as its own width allows (e.g. a side column)
+    <div className="@container flex flex-col gap-3">
       <span className="text-[13px] font-medium text-ink">{label}</span>
-      <ul className={`grid gap-3 ${single ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-2 sm:grid-cols-4"}`}>
+      <ul className={`grid gap-3 ${single ? "grid-cols-2 @md:grid-cols-3" : "grid-cols-2 @md:grid-cols-3 @2xl:grid-cols-4"}`}>
         {photos.map((p, i) => (
           <li key={p.path} className="flex flex-col gap-2">
             <div className="relative">

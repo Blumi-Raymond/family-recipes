@@ -134,11 +134,10 @@ export function BookForm({ initial, groupId }: { initial: BookFormInitial | null
       />
 
       {formError && <Alert>{t.formErrors[formError]}</Alert>}
-      {uploading && <p className="text-sm text-ink-soft">{t.images.waitForUpload}</p>}
 
       <div className="mt-2 flex flex-wrap gap-2">
         <Button type="submit" block={false} disabled={pending || leaving || uploading}>
-          {pending || leaving ? t.common.saving : t.books.save}
+          {pending || leaving ? t.common.saving : uploading ? t.images.uploadingShort : t.books.save}
         </Button>
         <LinkButton href={booksPath} variant="secondary" size="md">
           {t.common.cancel}

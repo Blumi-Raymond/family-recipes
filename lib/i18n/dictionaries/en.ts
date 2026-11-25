@@ -97,6 +97,7 @@ const en: Dictionary = {
     errorType: "This file can't be opened as an image.",
     errorUpload: "Uploading the photo failed. Please try again.",
     waitForUpload: "One moment, photos are still uploading.",
+    uploadingShort: "Photos uploading...",
   },
 
   confirm: {

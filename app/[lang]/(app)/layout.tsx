@@ -1,7 +1,6 @@
 // Frame for every page of the logged-in site: header with logo, links,
-// language switch and sign-out. A page that needs more room (the scan review:
-// form + page photo side by side) puts `data-wide` on an element, and the
-// frame widens for it (CSS :has — no page has to pass anything up). (proxy.ts already sent logged-out visitors
+// language switch and sign-out. One width for every page, so the header never
+// moves when going from page to page. (proxy.ts already sent logged-out visitors
 // to /login, and the database decides what each user may see.)
 import Link from "next/link";
 import { Suspense } from "react";
@@ -16,9 +15,9 @@ import { getI18n } from "@/lib/i18n/server";
 export default async function AppLayout({ children }: LayoutProps<"/[lang]">) {
   const { locale, t } = await getI18n();
   return (
-    <div className="group/app flex flex-1 flex-col">
+    <div className="flex flex-1 flex-col">
       <header className="border-b border-line">
-        <div className="mx-auto flex w-full max-w-5xl flex-wrap group-has-[[data-wide]]/app:max-w-7xl items-center gap-x-6 gap-y-2 px-6 py-3">
+        <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:gap-x-6 sm:px-6">
           <Link href={localePath(locale)} className="rounded-field outline-none focus-visible:ring-2 focus-visible:ring-brand/40">
             <Logo name={t.meta.siteName} />
           </Link>
@@ -37,7 +36,7 @@ export default async function AppLayout({ children }: LayoutProps<"/[lang]">) {
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10 has-[[data-wide]]:max-w-7xl">{children}</main>
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 sm:py-10">{children}</main>
     </div>
   );
 }

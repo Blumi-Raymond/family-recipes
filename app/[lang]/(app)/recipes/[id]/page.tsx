@@ -181,13 +181,14 @@ async function RecipeView({ params }: PageProps<"/[lang]/recipes/[id]">) {
     </article>
   );
 
-  if (gallery.length === 0) return body;
+  // No photos: the recipe alone, not stretched across the whole frame
+  if (gallery.length === 0) return <div className="max-w-5xl">{body}</div>;
 
   // Photos beside the recipe on wide screens: the recipe on the start side
   // (right in Hebrew, left in English), the photos on the end side, staying in
   // view while scrolling. Narrower: the photos on top, then the recipe.
   return (
-    <div data-wide className="grid items-start gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-12">
+    <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-12">
       {body}
       <aside aria-label={t.recipe.photos} className="order-first min-w-0 lg:sticky lg:top-6 lg:order-none">
         <RecipeGallery items={gallery} title={recipe.title} />

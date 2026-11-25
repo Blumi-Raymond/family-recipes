@@ -245,201 +245,212 @@ export function RecipeForm({ recipe, groupId, books, tags, initialBookId, scan }
 
   return (
     <form ref={formRef} onSubmit={onSubmit} noValidate className="@container flex flex-col gap-7">
-      {/* ---------------- Details ---------------- */}
-      <FormSection title={t.recipeForm.sectionDetails}>
-        <Marked notes={
-          <>
-            {kosherReason && (
-              <CheckNote tone="info">{fmt(t.scanReview.kosherReason, { reason: kosherReason })}</CheckNote>
-            )}
-            {marksFor("kosher_type")}
-          </>
-        }>
-        <ChoiceGroup
-          id="kosher"
-          legend={t.kosher.question}
-          name="kosher"
-          value={form.kosher}
-          onChange={(kosher: KosherType) => update({ kosher })}
-          error={err("kosher_type")}
-          options={[
-            { value: "meat", label: t.kosher.meat },
-            { value: "dairy", label: t.kosher.dairy },
-            { value: "pareve", label: t.kosher.pareve },
-          ]}
-        />
-        </Marked>
-        <Marked notes={marksFor("title")}>
-          <Field
-            id="title"
-            label={t.recipeForm.title}
-            value={form.title}
-            onChange={(e) => update({ title: e.target.value })}
-            error={err("title")}
-            dir="auto"
-            maxLength={200}
-            required
-          />
-        </Marked>
-        <TextArea
-          id="description"
-          label={t.recipeForm.description}
-          value={form.description}
-          onChange={(e) => update({ description: e.target.value })}
-          error={err("description")}
-          dir={dir}
-          lang={lang}
-          rows={2}
-        />
-      </FormSection>
-
-      {/* ---------------- Source ---------------- */}
-      <FormSection title={t.recipeForm.sectionSource}>
-        <div className="grid gap-[18px] @xl:grid-cols-[1fr_8rem]">
-          <Select
-            id="book"
-            label={t.recipeForm.book}
-            value={form.bookId}
-            onChange={(e) => update({ bookId: e.target.value })}
-          >
-            <option value="">{t.recipeForm.noBook}</option>
-            {books.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.title}
-              </option>
-            ))}
-          </Select>
-          {form.bookId ? (
-            <Field
-              id="page"
-              label={t.recipeForm.page}
-              value={form.page}
-              onChange={(e) => update({ page: e.target.value })}
-              error={err("page_number")}
-              inputMode="numeric"
-              dir="ltr"
-              className={locale === "he" ? "text-right" : ""}
+      {/* Wide (a computer, full page): the recipe itself in the main column; source,
+          amounts, labels and photos in a side column. Narrow (phone, or beside the
+          page photo when scanning): one column. */}
+      <div className="grid items-start gap-7 @5xl:grid-cols-[minmax(0,1fr)_22rem] @5xl:gap-x-12">
+        <div className="flex min-w-0 flex-col gap-7">
+          {/* ---------------- Details ---------------- */}
+          <FormSection title={t.recipeForm.sectionDetails}>
+            <Marked notes={
+              <>
+                {kosherReason && (
+                  <CheckNote tone="info">{fmt(t.scanReview.kosherReason, { reason: kosherReason })}</CheckNote>
+                )}
+                {marksFor("kosher_type")}
+              </>
+            }>
+            <ChoiceGroup
+              id="kosher"
+              legend={t.kosher.question}
+              name="kosher"
+              value={form.kosher}
+              onChange={(kosher: KosherType) => update({ kosher })}
+              error={err("kosher_type")}
+              options={[
+                { value: "meat", label: t.kosher.meat },
+                { value: "dairy", label: t.kosher.dairy },
+                { value: "pareve", label: t.kosher.pareve },
+              ]}
             />
-          ) : null}
-        </div>
-        {marksFor("page_number")}
-        {!form.bookId && (
-          <Field
-            id="sourceNote"
-            label={t.recipeForm.sourceNote}
-            hint={t.recipeForm.sourceNoteHint}
-            value={form.sourceNote}
-            onChange={(e) => update({ sourceNote: e.target.value })}
-            error={err("source_note")}
-            dir={dir}
-            lang={lang}
-          />
-        )}
-      </FormSection>
-
-      {/* ---------------- Amount and time ---------------- */}
-      <FormSection title={t.recipeForm.sectionAmounts}>
-        <div className="grid gap-[18px] @xl:grid-cols-2">
-          <Marked notes={marksFor("yield_text")}>
-            <Field
-              id="yield"
-              label={t.recipeForm.yield}
-              hint={t.recipeForm.yieldHint}
-              value={form.yieldText}
-              onChange={(e) => update({ yieldText: e.target.value })}
-              error={err("yield_text")}
+            </Marked>
+            <Marked notes={marksFor("title")}>
+              <Field
+                id="title"
+                label={t.recipeForm.title}
+                value={form.title}
+                onChange={(e) => update({ title: e.target.value })}
+                error={err("title")}
+                dir="auto"
+                maxLength={200}
+                required
+              />
+            </Marked>
+            <TextArea
+              id="description"
+              label={t.recipeForm.description}
+              value={form.description}
+              onChange={(e) => update({ description: e.target.value })}
+              error={err("description")}
               dir={dir}
               lang={lang}
+              rows={2}
             />
-          </Marked>
-          <Marked notes={marksFor("servings")}>
-            <NumberField id="servings" label={t.recipeForm.servings} value={form.servings} error={err("servings")} onChange={(servings) => update({ servings })} />
-          </Marked>
+          </FormSection>
+
+          {/* ---------------- Ingredients ---------------- */}
+          <FormSection title={t.recipeForm.sectionIngredients}>
+            <IngredientList
+              rows={form.ingredients}
+              setRows={(ingredients) => update({ ingredients })}
+              errors={errors}
+              dir={dir}
+              lang={lang}
+              rowNotes={(key) => rowNotes("ingredient", key)}
+            />
+            {err("ingredients") && <FieldError>{err("ingredients")}</FieldError>}
+          </FormSection>
+
+          {/* ---------------- Steps ---------------- */}
+          <FormSection title={t.recipeForm.sectionSteps}>
+            <StepList
+              rows={form.steps}
+              setRows={(steps) => update({ steps })}
+              errors={errors}
+              dir={dir}
+              lang={lang}
+              rowNotes={(key) => rowNotes("step", key)}
+            />
+            {err("steps") && <FieldError>{err("steps")}</FieldError>}
+          </FormSection>
+
+          {/* ---------------- Notes ---------------- */}
+          <FormSection title={t.recipeForm.sectionNotes}>
+            <Marked notes={marksFor("notes")}>
+              <TextArea
+                id="notes"
+                label={t.recipeForm.notes}
+                value={form.notes}
+                onChange={(e) => update({ notes: e.target.value })}
+                error={err("notes")}
+                dir={dir}
+                lang={lang}
+                rows={3}
+              />
+            </Marked>
+          </FormSection>
         </div>
-        <div className="grid gap-[18px] @xl:grid-cols-3">
-          <Marked notes={marksFor("prep_minutes")}>
-            <NumberField id="prep" label={t.recipeForm.prep} value={form.prep} error={err("prep_minutes")} onChange={(prep) => update({ prep })} />
-          </Marked>
-          <Marked notes={marksFor("cook_minutes")}>
-            <NumberField id="cook" label={t.recipeForm.cook} value={form.cook} error={err("cook_minutes")} onChange={(cook) => update({ cook })} />
-          </Marked>
-          <Marked notes={marksFor("total_minutes")}>
-            <NumberField id="total" label={t.recipeForm.total} value={form.total} error={err("total_minutes")} onChange={(total) => update({ total })} />
-          </Marked>
+
+        {/* Its own @container: the fields inside fit the side column's width */}
+        <div className="@container flex min-w-0 flex-col gap-7 border-t border-line pt-7 @5xl:border-t-0 @5xl:pt-0">
+          {/* ---------------- Source ---------------- */}
+          <FormSection title={t.recipeForm.sectionSource}>
+            {/* The second field depends on the book, but always takes the same place and
+                height (hint as a placeholder), so nothing below moves when she picks a book */}
+            <div className="grid gap-[18px] @xl:grid-cols-2">
+              <Select
+                id="book"
+                label={t.recipeForm.book}
+                value={form.bookId}
+                onChange={(e) => update({ bookId: e.target.value })}
+              >
+                <option value="">{t.recipeForm.noBook}</option>
+                {books.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.title}
+                  </option>
+                ))}
+              </Select>
+              {form.bookId ? (
+                <Field
+                  id="page"
+                  label={t.recipeForm.page}
+                  value={form.page}
+                  onChange={(e) => update({ page: e.target.value })}
+                  error={err("page_number")}
+                  inputMode="numeric"
+                  dir="ltr"
+                  className={locale === "he" ? "text-right" : ""}
+                />
+              ) : (
+                <Field
+                  id="sourceNote"
+                  label={t.recipeForm.sourceNote}
+                  placeholder={t.recipeForm.sourceNoteHint}
+                  value={form.sourceNote}
+                  onChange={(e) => update({ sourceNote: e.target.value })}
+                  error={err("source_note")}
+                  dir={dir}
+                  lang={lang}
+                />
+              )}
+            </div>
+            {marksFor("page_number")}
+          </FormSection>
+
+          {/* ---------------- Amount and time ---------------- */}
+          <FormSection title={t.recipeForm.sectionAmounts}>
+            <div className="grid gap-[18px] @xl:grid-cols-2">
+              <Marked notes={marksFor("yield_text")}>
+                <Field
+                  id="yield"
+                  label={t.recipeForm.yield}
+                  hint={t.recipeForm.yieldHint}
+                  value={form.yieldText}
+                  onChange={(e) => update({ yieldText: e.target.value })}
+                  error={err("yield_text")}
+                  dir={dir}
+                  lang={lang}
+                />
+              </Marked>
+              <Marked notes={marksFor("servings")}>
+                <NumberField id="servings" label={t.recipeForm.servings} value={form.servings} error={err("servings")} onChange={(servings) => update({ servings })} />
+              </Marked>
+            </div>
+            <div className="grid gap-[18px] @xl:grid-cols-3">
+              <Marked notes={marksFor("prep_minutes")}>
+                <NumberField id="prep" label={t.recipeForm.prep} value={form.prep} error={err("prep_minutes")} onChange={(prep) => update({ prep })} />
+              </Marked>
+              <Marked notes={marksFor("cook_minutes")}>
+                <NumberField id="cook" label={t.recipeForm.cook} value={form.cook} error={err("cook_minutes")} onChange={(cook) => update({ cook })} />
+              </Marked>
+              <Marked notes={marksFor("total_minutes")}>
+                <NumberField id="total" label={t.recipeForm.total} value={form.total} error={err("total_minutes")} onChange={(total) => update({ total })} />
+              </Marked>
+            </div>
+          </FormSection>
+
+          {/* ---------------- Tags ---------------- */}
+          <FormSection title={t.recipeForm.sectionTags}>
+            {/* id: the scan summary can move here (tabIndex -1: focusable by script only) */}
+            <div id="tags" tabIndex={-1} className="flex flex-col gap-3 rounded-field outline-none">
+              <TagPicker
+                tags={tags}
+                selected={form.tagIds}
+                onChange={(tagIds) => update({ tagIds })}
+              />
+              {marksFor("tags")}
+            </div>
+          </FormSection>
+
+          {/* ---------------- Photos ---------------- */}
+          <FormSection title={t.recipeForm.sectionPhotos}>
+            <PhotoPicker
+              label={fmt(t.images.max, { max: MAX_PHOTOS })}
+              groupId={groupId}
+              folder="dishes"
+              photos={form.photos}
+              setPhotos={setPhotos}
+              max={MAX_PHOTOS}
+              onBusyChange={setUploading}
+            />
+            {err("photos") && <FieldError>{err("photos")}</FieldError>}
+          </FormSection>
         </div>
-      </FormSection>
-
-      {/* ---------------- Ingredients ---------------- */}
-      <FormSection title={t.recipeForm.sectionIngredients}>
-        <IngredientList
-          rows={form.ingredients}
-          setRows={(ingredients) => update({ ingredients })}
-          errors={errors}
-          dir={dir}
-          lang={lang}
-          rowNotes={(key) => rowNotes("ingredient", key)}
-        />
-        {err("ingredients") && <FieldError>{err("ingredients")}</FieldError>}
-      </FormSection>
-
-      {/* ---------------- Steps ---------------- */}
-      <FormSection title={t.recipeForm.sectionSteps}>
-        <StepList
-          rows={form.steps}
-          setRows={(steps) => update({ steps })}
-          errors={errors}
-          dir={dir}
-          lang={lang}
-          rowNotes={(key) => rowNotes("step", key)}
-        />
-        {err("steps") && <FieldError>{err("steps")}</FieldError>}
-      </FormSection>
-
-      {/* ---------------- Notes ---------------- */}
-      <FormSection title={t.recipeForm.sectionNotes}>
-        <Marked notes={marksFor("notes")}>
-          <TextArea
-            id="notes"
-            label={t.recipeForm.notes}
-            value={form.notes}
-            onChange={(e) => update({ notes: e.target.value })}
-            error={err("notes")}
-            dir={dir}
-            lang={lang}
-            rows={3}
-          />
-        </Marked>
-      </FormSection>
-
-      {/* ---------------- Tags ---------------- */}
-      <FormSection title={t.recipeForm.sectionTags}>
-        {/* id: the scan summary can move here (tabIndex -1: focusable by script only) */}
-        <div id="tags" tabIndex={-1} className="flex flex-col gap-3 rounded-field outline-none">
-          <TagPicker
-            tags={tags}
-            selected={form.tagIds}
-            onChange={(tagIds) => update({ tagIds })}
-          />
-          {marksFor("tags")}
-        </div>
-      </FormSection>
-
-      {/* ---------------- Photos ---------------- */}
-      <FormSection title={t.recipeForm.sectionPhotos}>
-        <PhotoPicker
-          label={fmt(t.images.max, { max: MAX_PHOTOS })}
-          groupId={groupId}
-          folder="dishes"
-          photos={form.photos}
-          setPhotos={setPhotos}
-          max={MAX_PHOTOS}
-          onBusyChange={setUploading}
-        />
-        {err("photos") && <FieldError>{err("photos")}</FieldError>}
-      </FormSection>
+      </div>
 
       {/* ---------------- Save ---------------- */}
-      <div className="sticky bottom-0 -mx-6 flex flex-col gap-3 border-t border-line bg-surface/95 px-6 py-4 backdrop-blur">
+      <div className="sticky bottom-0 -mx-4 flex flex-col gap-3 border-t border-line bg-surface/95 px-4 py-4 sm:-mx-6 sm:px-6 backdrop-blur">
         {formError && <Alert>{t.formErrors[formError]}</Alert>}
         {duplicate && (
           <div role="alert" className="flex flex-col items-start gap-2 rounded-field bg-notice-tint px-4 py-3 text-sm leading-relaxed text-notice">
@@ -466,10 +477,9 @@ export function RecipeForm({ recipe, groupId, books, tags, initialBookId, scan }
             </div>
           </div>
         )}
-        {uploading && <p className="text-sm text-ink-soft">{t.images.waitForUpload}</p>}
         <div className="flex flex-wrap gap-2">
           <Button type="submit" block={false} disabled={pending || leaving || uploading}>
-            {pending || leaving ? t.common.saving : t.recipeForm.save}
+            {pending || leaving ? t.common.saving : uploading ? t.images.uploadingShort : t.recipeForm.save}
           </Button>
           {scan ? (
             <Button variant="secondary" block={false} onClick={scan.onBack} disabled={pending || leaving}>

@@ -52,8 +52,7 @@ function viewFor(a: ScanAnswer, saved: Record<string, string>): View {
 export function ScanReview(props: Props) {
   const { t } = useI18n();
   return (
-    // data-wide: the page frame widens for this screen (form + photo side by side)
-    <div data-wide className="grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,30rem)]">
+    <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,30rem)]">
       <aside className="min-w-0 xl:sticky xl:top-6 xl:order-2" aria-label={t.scanReview.photos}>
         <PagePhotos pages={props.pages} cookbookTitle={props.cookbook?.title ?? null} />
       </aside>
