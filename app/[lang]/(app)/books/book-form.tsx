@@ -71,6 +71,15 @@ export function BookForm({ initial, groupId }: { initial: BookFormInitial | null
         return;
       }
       if (result.ok) {
+        // Next.js keeps this screen (hidden) for the browser's "back" button.
+        // A NEW book's form starts fresh, so "back" + "save" can't create
+        // the same book twice.
+        if (!initial) {
+          setTitle("");
+          setAuthor("");
+          setNotes("");
+          setCover([]);
+        }
         router.push(booksPath);
       } else {
         setErrors(result.fieldErrors ?? {});

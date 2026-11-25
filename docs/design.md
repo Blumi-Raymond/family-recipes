@@ -48,6 +48,8 @@ All in `components/ui.tsx` unless noted. Build screens from these.
 - Page title row = `<PageHeader title actions>`. Empty list = `<EmptyState>`. Form part = `<FormSection title>`.
 - Errors/success = `<Alert>`; keep text short and human ("הסיסמה שגויה.").
 - Images = `<Photo>` (`components/photo.tsx`, soft placeholder when missing); uploading = `<PhotoPicker>`.
+- Recipe page photos for scanning (1–4, in reading order, high resolution) = `<PagePicker>` (`components/page-picker.tsx`):
+  portrait tiles (3:4) numbered "עמוד 1", with text actions להקדים / לדחות / הסרה.
 - "Are you sure?" = `<ConfirmButton>` (`components/confirm-button.tsx`) — in place, no browser pop-ups; focus starts on "No".
 - Loading = soft `bg-brand-tint` shapes with `animate-pulse` (`components/skeletons.tsx`).
 - Icons: thin outline (stroke 1.6–1.8), brand color, inline SVG.

@@ -131,6 +131,13 @@ export function RecipeForm({ recipe, groupId, books, tags, initialBookId }: Prop
       }
       if (saved.ok) {
         setDirty(false);
+        // Next.js keeps this screen (hidden) for the browser's "back" button.
+        // A NEW recipe's form starts fresh, so "back" + "save" can't create
+        // the same recipe twice. (Editing keeps its values: saving again only
+        // updates the same recipe.)
+        if (!recipe) {
+          setForm((f) => ({ ...initialFormState(null, locale), bookId: f.bookId }));
+        }
         router.push(localePath(locale, `/recipes/${saved.id}`));
       } else {
         setFormError(saved.error);

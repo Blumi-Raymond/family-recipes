@@ -6,7 +6,14 @@
 import { createClient } from "@/lib/supabase/client";
 import { IMAGE_BUCKET, newImagePath, thumbPath, type ImageFolder } from "./paths";
 
-const FULL_SIZE = 1600;
+// Size and quality per folder. Page photos are read by the AI, so they keep
+// more detail: 2576px on the long side is the most the model makes use of,
+// and text needs a higher quality than a photo of a dish.
+const SETTINGS: Record<ImageFolder, { max: number; webp: number; jpeg: number }> = {
+  dishes: { max: 1600, webp: 0.82, jpeg: 0.85 },
+  covers: { max: 1600, webp: 0.82, jpeg: 0.85 },
+  pages: { max: 2576, webp: 0.9, jpeg: 0.92 },
+};
 const THUMB_SIZE = 480;
 
 export class ImageError extends Error {
@@ -52,14 +59,21 @@ export async function uploadImage(
   folder: ImageFolder,
 ): Promise<UploadedImage> {
   const image = await loadImage(file);
+  const settings = SETTINGS[folder];
 
-  // WebP where the browser can create it (older Safari can't -> JPEG)
-  let full = await toBlob(image, FULL_SIZE, "image/webp", 0.82);
-  const isWebp = full.type === "image/webp";
-  if (!isWebp) full = await toBlob(image, FULL_SIZE, "image/jpeg", 0.85);
+  let full: Blob;
+  let thumb: Blob;
+  let isWebp: boolean;
+  try {
+    // WebP where the browser can create it (older Safari can't -> JPEG)
+    full = await toBlob(image, settings.max, "image/webp", settings.webp);
+    isWebp = full.type === "image/webp";
+    if (!isWebp) full = await toBlob(image, settings.max, "image/jpeg", settings.jpeg);
+    thumb = await toBlob(image, THUMB_SIZE, isWebp ? "image/webp" : "image/jpeg", 0.78);
+  } finally {
+    image.close(); // free the memory even if drawing failed
+  }
   const type = isWebp ? "image/webp" : "image/jpeg";
-  const thumb = await toBlob(image, THUMB_SIZE, type, 0.78);
-  image.close();
 
   const path = newImagePath(groupId, folder, isWebp ? "webp" : "jpg");
   const storage = createClient().storage.from(IMAGE_BUCKET);
