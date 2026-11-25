@@ -35,15 +35,70 @@ export function parseScanAnswer(pasted: string): ParseResult {
   if (text.length > MAX_PASTE_LENGTH) return { ok: false, error: "tooLong" };
 
   for (const json of candidates(text)) {
-    let data: unknown;
-    try {
-      data = JSON.parse(json);
-    } catch {
-      continue; // try the next place
+    // As is; then with quote marks inside texts repaired (see below)
+    for (const attempt of [json, escapeInnerQuotes(json)]) {
+      let data: unknown;
+      try {
+        data = JSON.parse(attempt);
+      } catch {
+        continue;
+      }
+      return checkScanAnswer(data);
     }
-    return checkScanAnswer(data);
   }
   return { ok: false, error: "notJson" };
+}
+
+// Hebrew writes abbreviations and quotes with a plain " (ק"ג, עמ"ש, "3-2"),
+// and chats often leave it like that inside the JSON texts — which ends the
+// text early and breaks the whole answer. Repair: inside a text, a " is
+// kept as the END of the text only if what follows looks like JSON goes on
+// (":" , "}" , "]" , or "," followed by the next value). Any other " becomes \".
+// Valid JSON is never changed by this (its inner quotes are already \").
+export function escapeInnerQuotes(json: string): string {
+  let out = "";
+  let inText = false;
+  for (let i = 0; i < json.length; i++) {
+    const c = json[i];
+    if (!inText) {
+      if (c === '"') inText = true;
+      out += c;
+      continue;
+    }
+    if (c === "\\") {
+      out += c + (json[i + 1] ?? "");
+      i++;
+      continue;
+    }
+    if (c === '"') {
+      if (endsText(json, i + 1)) {
+        inText = false;
+        out += c;
+      } else {
+        out += '\\"';
+      }
+      continue;
+    }
+    out += c;
+  }
+  return out;
+}
+
+const nextChar = (s: string, from: number) => {
+  let i = from;
+  while (i < s.length && /\s/.test(s[i])) i++;
+  return { char: s[i] ?? "", at: i };
+};
+
+// Does the text end at this " ? (`from` = the position right after it)
+function endsText(s: string, from: number): boolean {
+  const next = nextChar(s, from);
+  if (next.char === "" || next.char === ":" || next.char === "}" || next.char === "]") return true;
+  if (next.char !== ",") return false;
+  // `"a", "b"` / `"a", {` ... — not `"he said "hi", then"`
+  const after = nextChar(s, next.at + 1);
+  if (/["{[\-0-9]/.test(after.char)) return true;
+  return /^(true|false|null)(?![\p{L}\p{N}_])/u.test(s.slice(after.at, after.at + 6));
 }
 
 // Already-parsed data (the direct path, or the scan log): same check

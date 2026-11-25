@@ -99,6 +99,8 @@ ${tagList}`,
   if (mode === "paste") {
     sections.push(`## Your answer
 Reply with ONE JSON object only — no text before or after it, no explanations.
+Inside texts, a plain double quote (") breaks the JSON. Write Hebrew abbreviations with ״ and ׳
+(ק״ג, עמ׳), and write any other double quote as \\".
 It must match this JSON schema exactly:
 ${JSON.stringify(ANSWER_JSON_SCHEMA)}`);
   }

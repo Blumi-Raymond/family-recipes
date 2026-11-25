@@ -361,3 +361,41 @@ test("tags: an id, or the Hebrew / English name, all work; others are dropped", 
   assert.deepEqual(form.tagIds, [tags[0].id, tags[1].id]);
   assert.deepEqual(review.droppedTags, ["unknown"]);
 });
+
+// ---------------------------------------------------------------------
+// A real answer pasted from a chat (25.11): plain " inside Hebrew texts
+// (ק"ג, "3-2", ("10 דקות")) — invalid JSON as is, read after repair.
+// ---------------------------------------------------------------------
+import { readFileSync } from "node:fs";
+import { escapeInnerQuotes } from "../lib/scan/parse";
+
+test("paste: plain quotes inside Hebrew texts are repaired (real answer)", () => {
+  const pasted = readFileSync(new URL("./fixtures/paste-hebrew-quotes.txt", import.meta.url), "utf8");
+  assert.throws(() => JSON.parse(pasted)); // really broken as pasted
+  const result = parseScanAnswer(pasted);
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  const [cake, salad] = result.answer.recipes;
+  assert.equal(cake.title, "עוגת דבש של שבת");
+  assert.equal(cake.ingredients.length, 12);
+  assert.equal(cake.checks[1].reason, 'בספר כתוב "3-2". נשמר כטווח 2-3 כוסות.');
+  assert.equal(salad.ingredients[0].original_text, '1 ק"ג גזר, חתוך לפרוסות');
+  assert.equal(salad.ingredients[0].unit, 'ק"ג');
+  assert.equal(salad.checks[0].reason, 'זמן הבישול נלקח מתוך שלב ההכנה ("10 דקות").');
+});
+
+test("quote repair: valid JSON is never changed; tricky spots", () => {
+  const valid = JSON.stringify({ a: 'x "q" y', b: ["1", "2"], c: { d: "" }, e: 3, f: true });
+  assert.equal(escapeInnerQuotes(valid), valid);
+  // a quote right before a comma inside a text (followed by more words)
+  const tricky = '{"a": "he said "hi", then left", "b": "ק"ג"}';
+  assert.deepEqual(JSON.parse(escapeInnerQuotes(tricky)), { a: 'he said "hi", then left', b: 'ק"ג' });
+  // in a list, at the end, before a closing brace
+  assert.deepEqual(JSON.parse(escapeInnerQuotes('{"t": ["עמ"ש", "x"]}')), { t: ['עמ"ש', "x"] });
+});
+
+test("prompt: tells the chat how to write quotes inside texts", () => {
+  const prompt = buildScanPrompt({ mode: "paste", pageCount: 1, locale: "he", tags: [] });
+  assert.ok(prompt.includes("ק״ג"));
+  assert.ok(prompt.includes('as \\".'));
+});

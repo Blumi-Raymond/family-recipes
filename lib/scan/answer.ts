@@ -96,7 +96,7 @@ export const ANSWER_JSON_SCHEMA = closed("The result of reading the page photos.
         enum: ["meat", "dairy", "pareve"],
         description: "Suggested meat / dairy / pareve, by the rules in the instructions.",
       },
-      kosher_reason: str('Why, naming the ingredients: "dairy because of: butter, cream". For pareve: "no meat or dairy ingredients".'),
+      kosher_reason: str("Why, naming the ingredients, in the user's language (the instructions say which): e.g. dairy because of: butter, cream. For pareve: that there are no meat or dairy ingredients."),
       tags: {
         type: "array",
         description: "Up to 4 tag ids from the given list, only when clearly right.",
