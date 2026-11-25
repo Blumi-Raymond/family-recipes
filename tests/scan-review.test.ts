@@ -1,18 +1,18 @@
 // Run: npm test
 // The review screen's logic: the "check this" summary, marks under fields,
-// the stored answer, and comparing titles (same recipe saved twice).
+// which stored recipes were saved, and comparing titles (same recipe saved twice).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ScannedRecipe } from "../lib/scan/answer";
 import { scannedRecipeToForm, type ToFormContext } from "../lib/scan/to-form";
 import {
-  answerStorageKey,
   marksByPlace,
   normalizeTitle,
-  readStoredAnswer,
+  readSaved,
   reasonText,
   sameTitle,
   summarizeChecks,
+  unsavedIndexes,
 } from "../lib/scan/review";
 import he from "../lib/i18n/dictionaries/he";
 
@@ -130,17 +130,19 @@ test("marks under fields: grouped by field / row; general only in the summary", 
   assert.equal(reasonText(marks.get("ingredient.si0")![0], he.scanReview.reasons), he.scanReview.reasons.quantity);
 });
 
-test("stored answer: read back safely, anything odd is ignored", () => {
-  assert.equal(answerStorageKey(["a", "b"]), "scan-answer:a,b");
-  assert.deepEqual(readStoredAnswer(JSON.stringify({ text: "{}", saved: { "0": "id1", x: "no", "1": 5 } })), {
-    text: "{}",
-    saved: { "0": "id1" },
+test("saved recipes of a stored answer: read safely from the database", () => {
+  const id = "0f8fad5b-d9cb-469f-a165-70867728950e";
+  // positions beyond the answer, non-ids and odd keys are ignored
+  assert.deepEqual(readSaved({ "0": id, "1": id.toUpperCase(), "5": id, x: id, "2": 7, "3": "abc" }, 4), {
+    "0": id,
+    "1": id,
   });
-  assert.deepEqual(readStoredAnswer(JSON.stringify({ text: "t" })), { text: "t", saved: {} });
-  assert.equal(readStoredAnswer(null), null);
-  assert.equal(readStoredAnswer("not json"), null);
-  assert.equal(readStoredAnswer(JSON.stringify({ saved: {} })), null);
-  assert.equal(readStoredAnswer("null"), null);
+  assert.deepEqual(readSaved(null, 3), {});
+  assert.deepEqual(readSaved([id], 3), {});
+  assert.deepEqual(readSaved("x", 3), {});
+  assert.deepEqual(unsavedIndexes(3, { "1": id }), [0, 2]);
+  assert.deepEqual(unsavedIndexes(2, { "0": id, "1": id }), []);
+  assert.deepEqual(unsavedIndexes(0, {}), []);
 });
 
 test("same title: case, spaces, quotes and dashes don't matter; empty never matches", () => {

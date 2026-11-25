@@ -5,27 +5,23 @@
 //   2. several recipes found -> choose one
 //   3. the recipe form, filled in, with "worth checking" marks and a summary,
 //      next to the page photo. Nothing is saved until "Save recipe".
-// The pasted answer is kept for this browser tab (sessionStorage), so going
-// back or reloading doesn't lose an answer that took a chat to get.
+// The answer is stored in the database (scan_drafts) together with which of
+// its recipes were saved, so she can come back to the rest later: from the
+// scan screen ("continue where you stopped") or from a scanned recipe's page.
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useState, useSyncExternalStore, type FormEvent } from "react";
+import { useCallback, useMemo, useState, useTransition, type FormEvent } from "react";
 import { Alert, Badge, Button, CheckNote, LinkButton, TextArea } from "@/components/ui";
+import { markScanRecipeSaved, saveScanDraft } from "@/lib/actions/scan";
 import type { Tag } from "@/lib/data/common";
+import type { StoredScanDraft } from "@/lib/data/scan";
 import { useI18n } from "@/lib/i18n/client";
 import { dirOf, fmt, localePath, plural } from "@/lib/i18n/config";
 import type { RecipeFormState } from "@/lib/recipes/form-state";
 import type { ScanAnswer } from "@/lib/scan/answer";
 import { parseScanAnswer, type ParseResult } from "@/lib/scan/parse";
 import { buildScanPrompt } from "@/lib/scan/prompt";
-import {
-  answerStorageKey,
-  readStoredAnswer,
-  reasonText,
-  summarizeChecks,
-  type MarkPlace,
-  type StoredAnswer,
-} from "@/lib/scan/review";
+import { reasonText, summarizeChecks, type MarkPlace } from "@/lib/scan/review";
 import { scannedRecipeToForm, type ScanReview as Review } from "@/lib/scan/to-form";
 import { RecipeForm } from "../../recipes/recipe-form";
 import { PagePhotos, type ReviewPage } from "./page-photos";
@@ -37,27 +33,13 @@ type Props = {
   groupId: string;
   books: { id: string; title: string }[];
   tags: Tag[];
+  draft: StoredScanDraft | null; // an answer stored earlier for these pages
 };
 
 type View = { kind: "paste" } | { kind: "list" } | { kind: "form"; index: number };
 type PasteError = Extract<ParseResult, { ok: false }>["error"];
 
 const CHAT_URL = "https://claude.ai/new";
-
-function storageGet(key: string): string | null {
-  try {
-    return window.sessionStorage.getItem(key);
-  } catch {
-    return null; // storage blocked (private mode etc.): just not remembered
-  }
-}
-function storageSet(key: string, value: StoredAnswer) {
-  try {
-    window.sessionStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // full or blocked: the answer still works on this screen
-  }
-}
 
 // Where to go once an answer is known: one unsaved recipe -> its form;
 // otherwise the list (choose a recipe / see what was saved / "no recipe")
@@ -66,21 +48,7 @@ function viewFor(a: ScanAnswer, saved: Record<string, string>): View {
   return { kind: "list" };
 }
 
-// An answer pasted earlier in this tab (reload, "back" button)
-function restore(storageKey: string) {
-  const stored = readStoredAnswer(storageGet(storageKey));
-  if (!stored) return { text: "", answer: null, saved: {}, view: { kind: "paste" } as View };
-  const parsed = parseScanAnswer(stored.text);
-  if (!parsed.ok) return { text: stored.text, answer: null, saved: {}, view: { kind: "paste" } as View };
-  return { text: stored.text, answer: parsed.answer, saved: stored.saved, view: viewFor(parsed.answer, stored.saved) };
-}
-
-const noSubscribe = () => () => {};
-
-// The stored answer lives in the browser only: the server (and the first
-// render in the browser) shows a placeholder, then the screen starts with it.
 export function ScanReview(props: Props) {
-  const inBrowser = useSyncExternalStore(noSubscribe, () => true, () => false);
   const { t } = useI18n();
   return (
     // data-wide: the page frame widens for this screen (form + photo side by side)
@@ -89,27 +57,24 @@ export function ScanReview(props: Props) {
         <PagePhotos pages={props.pages} cookbookTitle={props.cookbook?.title ?? null} />
       </aside>
       <div className="min-w-0 xl:order-1">
-        {inBrowser ? (
-          <ReviewSteps {...props} />
-        ) : (
-          <div className="h-64 animate-pulse rounded-2xl bg-brand-tint" aria-hidden="true" />
-        )}
+        <ReviewSteps {...props} />
       </div>
     </div>
   );
 }
 
-function ReviewSteps({ pageIds, pages, cookbook, groupId, books, tags }: Props) {
+function ReviewSteps({ pageIds, pages, cookbook, groupId, books, tags, draft }: Props) {
   const { locale, t } = useI18n();
   const router = useRouter();
-  const storageKey = answerStorageKey(pageIds);
 
-  const [initial] = useState(() => restore(storageKey));
-  const [view, setView] = useState<View>(initial.view);
-  const [text, setText] = useState(initial.text);
+  const [view, setView] = useState<View>(() => (draft ? viewFor(draft.answer, draft.saved) : { kind: "paste" }));
+  const [text, setText] = useState("");
   const [pasteError, setPasteError] = useState<PasteError | null>(null);
-  const [answer, setAnswer] = useState<ScanAnswer | null>(initial.answer);
-  const [saved, setSaved] = useState<Record<string, string>>(initial.saved);
+  const [answer, setAnswer] = useState<ScanAnswer | null>(draft?.answer ?? null);
+  const [saved, setSaved] = useState<Record<string, string>>(draft?.saved ?? {});
+  const [draftId, setDraftId] = useState<string | null>(draft?.id ?? null);
+  const [notStored, setNotStored] = useState(false); // the answer couldn't be stored
+  const [reading, startReading] = useTransition();
   const [edits, setEdits] = useState<Record<number, RecipeFormState>>({});
   const [justSaved, setJustSaved] = useState<string | null>(null);
 
@@ -127,20 +92,32 @@ function ReviewSteps({ pageIds, pages, cookbook, groupId, books, tags }: Props) 
 
   function readAnswer(e: FormEvent) {
     e.preventDefault();
+    if (reading) return;
     const parsed = parseScanAnswer(text);
     if (!parsed.ok) {
       setPasteError(parsed.error);
       return;
     }
-    // A new answer starts fresh (nothing saved from it yet)
     setPasteError(null);
-    setAnswer(parsed.answer);
-    setSaved({});
-    setEdits({});
-    setJustSaved(null);
-    storageSet(storageKey, { text, saved: {} });
-    setView(viewFor(parsed.answer, {}));
-    window.scrollTo({ top: 0 });
+    startReading(async () => {
+      // Stored for later. If that fails she can still go on now.
+      let id: string | null = null;
+      try {
+        const result = await saveScanDraft(pageIds, parsed.answer);
+        if (result.ok) id = result.id;
+      } catch {
+        // no connection: same as a failed save
+      }
+      // A new answer starts fresh (nothing saved from it yet)
+      setDraftId(id);
+      setNotStored(id === null);
+      setAnswer(parsed.answer);
+      setSaved({});
+      setEdits({});
+      setJustSaved(null);
+      setView(viewFor(parsed.answer, {}));
+      window.scrollTo({ top: 0 });
+    });
   }
 
   const pasteAgain = () => {
@@ -162,10 +139,16 @@ function ReviewSteps({ pageIds, pages, cookbook, groupId, books, tags }: Props) 
     [activeIndex],
   );
 
-  function onSaved(index: number, id: string) {
+  async function onSaved(index: number, id: string) {
     const next: Record<string, string> = { ...saved, [index]: id };
     setSaved(next);
-    storageSet(storageKey, { text, saved: next });
+    if (draftId) {
+      // Not saving this mark only means the recipe still shows as "to do";
+      // saving it again is caught by the duplicate warning.
+      try {
+        await markScanRecipeSaved(draftId, index, id);
+      } catch {}
+    }
     const left = drafts.filter((_, i) => !next[i]).length;
     if (left === 0) {
       // All done: to the recipe (this screen waits, hidden, for "back")
@@ -182,6 +165,7 @@ function ReviewSteps({ pageIds, pages, cookbook, groupId, books, tags }: Props) 
   if (view.kind === "paste" || !answer) {
     main = (
       <PasteSteps
+        reading={reading}
         pageCount={pages.length}
         pages={pages}
         tags={tags}
@@ -299,7 +283,7 @@ function ReviewSteps({ pageIds, pages, cookbook, groupId, books, tags }: Props) 
             sourcePages: pageIds,
             edited: current !== draft.form,
             onChange: onDraftChange,
-            onSaved: (id) => onSaved(index, id),
+            onSaved: (id) => void onSaved(index, id),
             onBack: () => setView(drafts.length > 1 ? { kind: "list" } : { kind: "paste" }),
             // Hidden after saving (kept for "back"): show the list when she returns
             onLeft: () => setView({ kind: "list" }),
@@ -309,7 +293,12 @@ function ReviewSteps({ pageIds, pages, cookbook, groupId, books, tags }: Props) 
     );
   }
 
-  return main;
+  return (
+    <div className="flex flex-col gap-5">
+      {notStored && view.kind !== "paste" && <Alert>{t.scanReview.notStored}</Alert>}
+      {main}
+    </div>
+  );
 }
 
 function newScanHref(locale: "he" | "en", cookbook: { id: string } | null) {
@@ -321,6 +310,7 @@ function newScanHref(locale: "he" | "en", cookbook: { id: string } | null) {
 // The free path: copy, chat, paste
 // ---------------------------------------------------------------------
 function PasteSteps({
+  reading,
   pageCount,
   pages,
   tags,
@@ -329,6 +319,7 @@ function PasteSteps({
   error,
   onSubmit,
 }: {
+  reading: boolean;
   pageCount: number;
   pages: ReviewPage[];
   tags: Tag[];
@@ -450,8 +441,8 @@ function PasteSteps({
                 className="font-mono text-[13px]"
               />
             </div>
-            <Button type="submit" block={false}>
-              {t.scanReview.read}
+            <Button type="submit" block={false} disabled={reading}>
+              {reading ? t.scanReview.reading : t.scanReview.read}
             </Button>
           </form>
         </li>

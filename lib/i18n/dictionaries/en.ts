@@ -205,6 +205,7 @@ const en: Dictionary = {
     moveToTrash: "Move to trash",
     trashConfirm: "Move this recipe to the trash?",
     trashNote: "You can restore it from the trash for 30 days.",
+    scanPages: "Scan pages",
   },
 
   scan: {
@@ -232,6 +233,14 @@ const en: Dictionary = {
     notFromBook: "Not from a book",
     pageOf: "Page {n} of {total}",
     newScan: "New scan",
+    openTitle: "Continue where you stopped",
+    openText: "Scans with recipes that aren't saved yet.",
+    openLeftOne: "1 recipe left to save",
+    openLeftOther: "{n} recipes left to save",
+    openContinue: "Continue",
+    openDismiss: "Remove from the list",
+    openDismissQuestion: "Remove from the list? You can still reach the scan from a recipe saved from it.",
+    openDismissError: "Couldn't remove it. Please try again.",
   },
 
   // ---------------------------------------------------------------
@@ -254,6 +263,8 @@ const en: Dictionary = {
     answerLabel: "The answer from the chat",
     answerHint: "The whole answer, as it is. No need to clean it up.",
     read: "Fill in the form",
+    reading: "Reading...",
+    notStored: "The answer wasn't stored for later (connection problem). You can go on, but save all the recipes now.",
     pasteErrors: {
       empty: "Paste the answer from the chat.",
       tooLong: "The text is too long. Check that you pasted the right answer.",

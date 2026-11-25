@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui";
 import { getPersonalGroupId } from "@/lib/data/common";
 import { listCookbookOptions } from "@/lib/data/cookbooks";
 import { getI18n } from "@/lib/i18n/server";
+import { OpenScans } from "./open-scans";
 import { ScanForm } from "./scan-form";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -33,6 +34,10 @@ export default async function ScanPage(props: PageProps<"/[lang]/scan">) {
   return (
     <>
       <PageHeader title={t.scan.title} subtitle={t.scan.subtitle} />
+      {/* Nothing shown while loading: the list is a shortcut, the form is the page */}
+      <Suspense fallback={null}>
+        <OpenScans />
+      </Suspense>
       <Suspense fallback={<FormSkeleton />}>
         <Scan {...props} />
       </Suspense>

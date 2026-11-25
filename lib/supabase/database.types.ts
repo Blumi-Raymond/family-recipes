@@ -345,6 +345,24 @@ export type Database = {
         Update: never;
         Relationships: [];
       };
+      // AI answers waiting for review (20261125100000_scan_drafts.sql).
+      // Written via save_scan_draft / mark_scan_recipe_saved; dismissed_at directly.
+      scan_drafts: {
+        Row: {
+          id: string;
+          group_id: string;
+          page_ids: string[]; // in reading order
+          answer: Json; // checked again by the app when read (lib/scan/parse.ts)
+          saved: Json; // {"0": "<recipe id>"} — which recipe of the answer was saved
+          dismissed_at: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: never;
+        Update: { dismissed_at?: string | null };
+        Relationships: [];
+      };
     };
     Views: {
       // Recipes that are not in the trash. The app reads from here by default.
@@ -361,6 +379,13 @@ export type Database = {
       // Saves a whole recipe in one transaction; returns its id.
       // Shape of p_recipe: see lib/recipes/schema.ts (RecipeInput).
       save_recipe: { Args: { p_recipe: Json }; Returns: string };
+      // A new answer for these pages (replaces the old one); returns the draft id
+      save_scan_draft: { Args: { p_page_ids: string[]; p_answer: Json }; Returns: string };
+      // Recipe number p_index (from 0) of the draft's answer was saved
+      mark_scan_recipe_saved: {
+        Args: { p_draft_id: string; p_index: number; p_recipe_id: string };
+        Returns: undefined;
+      };
       // Checks the quota and logs a pending scan in one step; returns its id.
       // Errors: SC001 no permission, SC002 quota used up, SC003 bad pages.
       start_scan: { Args: { p_page_ids: string[]; p_model: string }; Returns: string };

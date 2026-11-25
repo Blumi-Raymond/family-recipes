@@ -1,13 +1,19 @@
 "use server";
-// Scan screen: after the page photos are uploaded, create one source_pages
-// row per photo (in reading order). The database checks the rest:
-// RLS (my group), the photo is in my group's "pages/" folder, and the
-// cookbook is in the same group.
+// Scan screens:
+//   createScanPages   after the page photos are uploaded, one source_pages row
+//                     per photo (in reading order). The database checks the
+//                     rest: RLS (my group), the photo is in my group's "pages/"
+//                     folder, and the cookbook is in the same group.
+//   findDuplicateRecipe   before saving a scanned recipe
+//   saveScanDraft / markScanRecipeSaved / dismissScanDraft   stored answers
+import { revalidatePath } from "next/cache";
 import * as z from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { MAX_RECIPES_PER_SCAN, scanAnswerSchema, type ScanAnswer } from "@/lib/scan/answer";
+import { MAX_PASTE_LENGTH } from "@/lib/scan/parse";
 import { inOrder, MAX_SCAN_PAGES, scanPagesSchema, type ScanPagesInput } from "@/lib/scan/pages";
 import { normalizeTitle, sameTitle } from "@/lib/scan/review";
-import { uuid } from "@/lib/validation";
+import { isUuid, uuid } from "@/lib/validation";
 
 export type CreatePagesResult = { ok: true; pageIds: string[] } | { ok: false; error: "generic" };
 
@@ -118,4 +124,77 @@ export async function findDuplicateRecipe(input: DuplicateQuery): Promise<Duplic
 
   const [a, b] = await Promise.all([fromBook(), fromPages()]);
   return [...a, ...b].find((r) => sameTitle(r.title, title)) ?? null;
+}
+
+// ---------------------------------------------------------------------
+// Answers waiting for review (scan_drafts)
+// ---------------------------------------------------------------------
+const pageIdList = z
+  .array(uuid)
+  .min(1)
+  .max(MAX_SCAN_PAGES)
+  .refine((ids) => new Set(ids).size === ids.length);
+
+function refreshScanScreens() {
+  revalidatePath("/[lang]/scan", "page");
+}
+
+// A new answer for these pages (replaces an earlier one). Checked again here.
+export async function saveScanDraft(
+  pageIds: string[],
+  answer: ScanAnswer,
+): Promise<{ ok: true; id: string } | { ok: false }> {
+  const ids = pageIdList.safeParse(pageIds);
+  const checked = scanAnswerSchema.safeParse(answer);
+  if (!ids.success || !checked.success || JSON.stringify(checked.data).length > MAX_PASTE_LENGTH) {
+    return { ok: false };
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("save_scan_draft", {
+    p_page_ids: ids.data,
+    p_answer: checked.data,
+  });
+  if (error) {
+    console.error("save_scan_draft error:", error.code, error.message);
+    return { ok: false };
+  }
+  refreshScanScreens();
+  return { ok: true, id: data };
+}
+
+// Recipe number `index` of the stored answer was saved as `recipeId`
+export async function markScanRecipeSaved(draftId: string, index: number, recipeId: string): Promise<{ ok: boolean }> {
+  if (!isUuid(draftId) || !isUuid(recipeId) || !Number.isInteger(index) || index < 0 || index >= MAX_RECIPES_PER_SCAN) {
+    return { ok: false };
+  }
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("mark_scan_recipe_saved", {
+    p_draft_id: draftId,
+    p_index: index,
+    p_recipe_id: recipeId,
+  });
+  if (error) {
+    console.error("mark_scan_recipe_saved error:", error.code, error.message);
+    return { ok: false };
+  }
+  refreshScanScreens();
+  return { ok: true };
+}
+
+// "Remove from the list" (the answer stays; the scan's review screen still shows it)
+export async function dismissScanDraft(draftId: string): Promise<{ ok: boolean }> {
+  if (!isUuid(draftId)) return { ok: false };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("scan_drafts")
+    .update({ dismissed_at: new Date().toISOString() })
+    .eq("id", draftId)
+    .select("id")
+    .maybeSingle();
+  if (error || !data) {
+    if (error) console.error("dismissScanDraft error:", error.code, error.message);
+    return { ok: false };
+  }
+  refreshScanScreens();
+  return { ok: true };
 }

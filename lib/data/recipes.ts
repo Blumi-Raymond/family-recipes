@@ -128,6 +128,7 @@ export type RecipeDetails = {
   steps: { section: string | null; instruction: string }[];
   tagIds: string[];
   photos: { path: string; is_cover: boolean; url: string | null; thumbUrl: string | null }[];
+  sourcePageIds: string[]; // page photos it was scanned from, in reading order ([] = typed by hand)
 };
 
 // null = not found, in the trash, or not hers.
@@ -136,7 +137,7 @@ export const getRecipe = cache(async (id: string): Promise<RecipeDetails | null>
   if (!isUuid(id)) return null;
   const supabase = await createClient();
 
-  const [recipe, ingredients, steps, tags, photos] = await Promise.all([
+  const [recipe, ingredients, steps, tags, photos, pages] = await Promise.all([
     supabase
       .from("active_recipes")
       .select(
@@ -156,8 +157,9 @@ export const getRecipe = cache(async (id: string): Promise<RecipeDetails | null>
       .select("image_path, is_cover")
       .eq("recipe_id", id)
       .order("created_at"),
+    supabase.from("recipe_source_pages").select("page_id").eq("recipe_id", id).order("position"),
   ]);
-  for (const r of [recipe, ingredients, steps, tags, photos]) {
+  for (const r of [recipe, ingredients, steps, tags, photos, pages]) {
     if (r.error) fail("getRecipe", r.error);
   }
   const row = recipe.data;
@@ -198,6 +200,7 @@ export const getRecipe = cache(async (id: string): Promise<RecipeDetails | null>
       url: full.get(p.image_path) ?? null,
       thumbUrl: thumbs.get(p.image_path) ?? null,
     })),
+    sourcePageIds: (pages.data ?? []).map((p) => p.page_id),
   };
 });
 

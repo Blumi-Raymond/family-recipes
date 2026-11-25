@@ -8,7 +8,7 @@ import { FormSkeleton } from "@/components/skeletons";
 import { LinkButton, PageHeader } from "@/components/ui";
 import { getPersonalGroupId, getTags } from "@/lib/data/common";
 import { listCookbookOptions } from "@/lib/data/cookbooks";
-import { getScanPages } from "@/lib/data/scan";
+import { getScanDraft, getScanPages } from "@/lib/data/scan";
 import { localePath } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
 import { parsePageIds } from "@/lib/scan/pages";
@@ -24,8 +24,9 @@ async function Review({ searchParams }: PageProps<"/[lang]/scan/review">) {
   const { pages: param } = await searchParams;
   const ids = parsePageIds(param);
   if (!ids) notFound();
-  const [scan, groupId, books, tags] = await Promise.all([
+  const [scan, draft, groupId, books, tags] = await Promise.all([
     getScanPages(ids),
+    getScanDraft(ids),
     getPersonalGroupId(),
     listCookbookOptions(),
     getTags(),
@@ -40,6 +41,7 @@ async function Review({ searchParams }: PageProps<"/[lang]/scan/review">) {
       groupId={groupId}
       books={books}
       tags={tags}
+      draft={draft}
     />
   );
 }

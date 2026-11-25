@@ -12,6 +12,7 @@ import { dirOf, fmt, localePath, plural } from "@/lib/i18n/config";
 import { getI18n } from "@/lib/i18n/server";
 import { formatMinutes } from "@/lib/recipes/format";
 import { formatQuantity } from "@/lib/recipes/quantity";
+import { pageIdsParam } from "@/lib/scan/pages";
 import { TrashButton } from "./trash-button";
 
 export async function generateMetadata({ params }: PageProps<"/[lang]/recipes/[id]">): Promise<Metadata> {
@@ -219,6 +220,24 @@ function StepsList({ steps }: { steps: RecipeDetails["steps"] }) {
 }
 
 async function SourceLine({ recipe }: { recipe: RecipeDetails }) {
+  const { locale, t } = await getI18n();
+  const source = <SourceText recipe={recipe} />;
+  if (recipe.sourcePageIds.length === 0) return source;
+  // Scanned: back to its page photos (and any recipe from them not saved yet)
+  return (
+    <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+      {source}
+      <Link
+        href={`${localePath(locale, "/scan/review")}?pages=${pageIdsParam(recipe.sourcePageIds)}`}
+        className="text-[15px] font-medium text-brand underline-offset-4 hover:underline"
+      >
+        {t.recipe.scanPages}
+      </Link>
+    </div>
+  );
+}
+
+async function SourceText({ recipe }: { recipe: RecipeDetails }) {
   const { locale, t } = await getI18n();
   if (recipe.book) {
     return (

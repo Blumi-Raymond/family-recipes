@@ -2,8 +2,7 @@
 //   - the "check this" marks, in the order of the form, each with where it
 //     points (a field / ingredient N / step N) and which input to jump to
 //   - the marks to show under each field or row
-//   - the saved state of a pasted answer (kept in the browser's session, so
-//     going back or reloading doesn't lose an answer that took a chat to get)
+//   - which recipes of a stored answer were saved (scan_drafts.saved)
 //   - comparing recipe titles (warning about a recipe saved twice)
 //
 // Marks follow the CURRENT form: if she removes a row, its marks go too.
@@ -141,32 +140,25 @@ export function marksByPlace(checks: ReviewCheck[]): Map<string, MarkReason[]> {
 }
 
 // ---------------------------------------------------------------------
-// A pasted answer, kept for this browser tab (sessionStorage)
+// Which recipes of a stored answer were saved: {"0": "<recipe id>"}.
+// From the database as any JSON: keep only real positions and ids.
 // ---------------------------------------------------------------------
-export type StoredAnswer = {
-  text: string; // the pasted answer, as pasted
-  saved: Record<string, string>; // recipe position in the answer -> saved recipe id
-};
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export const answerStorageKey = (pageIds: string[]) => `scan-answer:${pageIds.join(",")}`;
-
-export function readStoredAnswer(raw: string | null): StoredAnswer | null {
-  if (!raw) return null;
-  try {
-    const data: unknown = JSON.parse(raw);
-    if (typeof data !== "object" || data === null) return null;
-    const { text, saved } = data as Record<string, unknown>;
-    if (typeof text !== "string") return null;
-    const clean: Record<string, string> = {};
-    if (typeof saved === "object" && saved !== null) {
-      for (const [k, v] of Object.entries(saved)) {
-        if (/^\d+$/.test(k) && typeof v === "string") clean[k] = v;
-      }
+export function readSaved(json: unknown, recipeCount: number): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (typeof json !== "object" || json === null || Array.isArray(json)) return out;
+  for (const [key, value] of Object.entries(json)) {
+    if (/^\d+$/.test(key) && Number(key) < recipeCount && typeof value === "string" && UUID.test(value)) {
+      out[key] = value.toLowerCase();
     }
-    return { text, saved: clean };
-  } catch {
-    return null;
   }
+  return out;
+}
+
+// Positions of the recipes not saved yet
+export function unsavedIndexes(recipeCount: number, saved: Record<string, string>): number[] {
+  return Array.from({ length: recipeCount }, (_, i) => i).filter((i) => !saved[i]);
 }
 
 // ---------------------------------------------------------------------

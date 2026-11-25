@@ -62,6 +62,8 @@ All in `components/ui.tsx` unless noted. Build screens from these.
 - Icons: thin outline (stroke 1.6–1.8), brand color, inline SVG.
 - Header on small phones (≤440px): "מתכון חדש" shrinks to "+" and "סריקה" to a camera icon (the text stays for screen
   readers). Checked at 320–1280px in both languages — re-check when adding a link.
+- "Continue where you stopped" (scan screen) = a `bg-brand-tint` box above the form; each scan is a white rounded row with
+  the unsaved recipe names, a short grey line (how many left · book · date), "להמשך" and "הסרה מהרשימה" (`<ConfirmButton>`).
 - Scan review screen: the form on the start side, the page photo (sticky, page tabs, zoom, open full size) on the end
   side from 1280px; below that the photo sits above the form.
 - Text uses feminine Hebrew forms (the users are women in the family), e.g. "התחברי".
